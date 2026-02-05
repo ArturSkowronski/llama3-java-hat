@@ -1,0 +1,3 @@
+# Babylon JDK with Code Reflection support
+# Use: sdk env install && sdk env
+java=babylon-26-code-reflection
