@@ -1,4 +1,4 @@
-package com.arturskowronski.llama3babylon.hat;
+package com.arturskowronski.llama3babylon.samples;
 
 import jdk.incubator.code.Reflect;
 import hat.Accelerator;
