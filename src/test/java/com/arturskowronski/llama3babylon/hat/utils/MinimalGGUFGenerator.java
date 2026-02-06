@@ -1,4 +1,4 @@
-package com.arturskowronski.llama3babylon.hat;
+package com.arturskowronski.llama3babylon.hat.utils;
 
 import java.io.IOException;
 import java.lang.foreign.Arena;
@@ -8,7 +8,6 @@ import java.nio.channels.FileChannel;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
-import java.util.List;
 
 public class MinimalGGUFGenerator {
 

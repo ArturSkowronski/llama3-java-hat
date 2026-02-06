@@ -23,3 +23,17 @@ The build system expects the HAT artifacts to be present in `$JAVA_BABYLON_HOME/
 ```bash
 ./gradlew run --args="path/to/your/model.gguf"
 ```
+
+## Running Integration Tests
+
+Integration tests require the TinyLlama model. You can download it using the provided script:
+
+```bash
+./scripts/download_tinyllama.sh
+```
+
+Then run the integration tests via Gradle:
+
+```bash
+JAVA_BABYLON_HOME=/path/to/babylon TINY_LLAMA_PATH=$(pwd)/tinyllama-1.1b-chat-v1.0.Q2_K.gguf ./gradlew integrationTest
+```

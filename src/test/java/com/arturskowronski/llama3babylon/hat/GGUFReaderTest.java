@@ -1,5 +1,6 @@
 package com.arturskowronski.llama3babylon.hat;
 
+import com.arturskowronski.llama3babylon.hat.utils.MinimalGGUFGenerator;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import java.io.IOException;
