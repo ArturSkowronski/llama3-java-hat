@@ -5,6 +5,15 @@ plugins {
 
 repositories {
     mavenCentral()
+    flatDir {
+        dirs("/Users/askowronski/GitHub/babylon/hat/build")
+    }
+}
+
+dependencies {
+    implementation(files("/Users/askowronski/GitHub/babylon/hat/build/hat-core-1.0.jar"))
+    implementation(files("/Users/askowronski/GitHub/babylon/hat/build/hat-optkl-1.0.jar"))
+    implementation(files("/Users/askowronski/GitHub/babylon/hat/build/hat-backend-java-seq-1.0.jar"))
 }
 
 java {
@@ -22,10 +31,12 @@ tasks.withType<JavaCompile> {
 }
 
 application {
-    mainClass.set("com.example.RuntimeCheck")
+    mainClass.set("com.arturskowronski.llama3babylon.hat.RuntimeCheck")
     applicationDefaultJvmArgs = listOf(
         "--enable-preview",
-        "--add-modules=jdk.incubator.code"
+        "--add-modules=jdk.incubator.code",
+        "--add-exports=java.base/jdk.internal.vm.annotation=ALL-UNNAMED",
+        "-Djava.library.path=/Users/askowronski/GitHub/babylon/hat/build"
     )
 }
 
