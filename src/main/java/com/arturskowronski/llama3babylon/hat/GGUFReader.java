@@ -62,7 +62,7 @@ public class GGUFReader {
             long offset = 0;
             int magic = segment.get(ValueLayout.JAVA_INT_UNALIGNED, offset);
             offset += 4;
-            if (magic != 0x46554747) { // "GGUF" in little-endian
+            if (magic != 0x46554747 /* GGUF_MAGIC */) { // "GGUF" in little-endian
                 throw new IOException("Not a GGUF file or wrong magic: " + Integer.toHexString(magic));
             }
 
