@@ -1,4 +1,4 @@
-package com.example;
+package com.arturskowronski.llama3babylon.hat;
 
 import java.lang.module.ModuleDescriptor;
 import java.util.stream.Collectors;
@@ -18,6 +18,15 @@ public class RuntimeCheck {
         if (hasCodeReflection) {
             System.out.println("Code Reflection Module Present: true ✅");
             System.out.println("Babylon is ready for use!");
+
+            System.out.println("\n=== HAT Verification ===");
+            try {
+                HATSample.main(new String[0]);
+                System.out.println("\nHAT Verification Successful! ✅");
+            } catch (Exception e) {
+                System.out.println("\nHAT Verification Failed! ❌");
+                e.printStackTrace();
+            }
         } else {
             System.out.println("Code Reflection Module Present: false ⚠️");
             System.out.println("You need Babylon JDK for Code Reflection features.");

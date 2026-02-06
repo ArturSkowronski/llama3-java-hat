@@ -11,5 +11,6 @@ build/
 # OS
 .DS_Store
 
-# Claude
+# Coding Assistants
 .claude/
+.junie/
