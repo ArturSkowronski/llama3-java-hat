@@ -20,3 +20,6 @@ Claude.md
 GPU_LLAMA3_HAT_ANALYSIS.md
 
 *.gguf
+
+# Results
+results/

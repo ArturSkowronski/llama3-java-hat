@@ -26,6 +26,24 @@ tasks.test {
     jvmArgs(application.applicationDefaultJvmArgs)
 }
 
+tasks.register<Test>("integrationTest") {
+    description = "Runs integration tests."
+    group = "verification"
+    
+    testClassesDirs = sourceSets["test"].output.classesDirs
+    classpath = sourceSets["test"].runtimeClasspath
+
+    useJUnitPlatform {
+        includeTags("integration")
+    }
+    jvmArgs(application.applicationDefaultJvmArgs)
+    
+    val tinyLlamaPath = System.getenv("TINY_LLAMA_PATH")
+    if (tinyLlamaPath != null) {
+        environment("TINY_LLAMA_PATH", tinyLlamaPath)
+    }
+}
+
 java {
     toolchain {
         languageVersion.set(JavaLanguageVersion.of(26))
@@ -41,7 +59,7 @@ tasks.withType<JavaCompile> {
 }
 
 application {
-    mainClass.set("com.arturskowronski.llama3babylon.hat.LlamaModel")
+    mainClass.set("com.arturskowronski.llama3babylon.hat.GGUFReader")
     applicationDefaultJvmArgs = listOf(
         "--enable-preview",
         "--add-modules=jdk.incubator.code",
