@@ -54,7 +54,7 @@ jobs:
           cd babylon/hat
           export JAVA_HOME=$(pwd)/../build/linux-x86_64-server-release/images/jdk
           export PATH=$JAVA_HOME/bin:$PATH
-          bash ./build.sh
+          java hat.java bld
 
       - name: Set Babylon Home Output
         id: set-path
