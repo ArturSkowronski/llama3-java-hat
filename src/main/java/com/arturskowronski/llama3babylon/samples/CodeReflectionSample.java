@@ -14,7 +14,7 @@ public class CodeReflectionSample {
         return a + b;
     }
 
-    public static void main(String[] args) throws Exception {
+    public static void main(String[] args) {
         System.out.println("=== Code Reflection Sample ===");
 
         Method method = CodeReflectionSample.class.getDeclaredMethod("add", int.class, int.class);
