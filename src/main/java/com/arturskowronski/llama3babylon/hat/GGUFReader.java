@@ -29,7 +29,30 @@ public class GGUFReader {
 
     public record GGUFMetadata(int version, long tensorCount, long metadataKVCount, Map<String, Object> metadata, List<GGUFTensorInfo> tensors, long dataStartOffset) {}
 
-    public record GGUFTensorInfo(String name, int dimensions, long[] shape, int type, long offset) {}
+    public record GGUFTensorInfo(String name, int dimensions, long[] shape, int type, long offset) {
+        public long size() {
+            long count = 1;
+            for (long d : shape) count *= d;
+
+            return switch (type) {
+                case 0 -> count * 4; // F32
+                case 1 -> count * 2; // F16
+                case 2 -> (count / 32) * 18; // Q4_0
+                case 3 -> (count / 32) * 20; // Q4_1
+                case 6 -> (count / 32) * 22; // Q5_0
+                case 7 -> (count / 32) * 24; // Q5_1
+                case 8 -> (count / 32) * 34; // Q8_0
+                case 9 -> (count / 32) * 36; // Q8_1
+                case 10 -> (count / 256) * 84; // Q2_K
+                case 11 -> (count / 256) * 110; // Q3_K
+                case 12 -> (count / 256) * 144; // Q4_K
+                case 13 -> (count / 256) * 176; // Q5_K
+                case 14 -> (count / 256) * 210; // Q6_K
+                case 15 -> (count / 256) * 256; // Q8_K? No.
+                default -> 0;
+            };
+        }
+    }
 
     public static GGUFMetadata readMetadata(Path path) throws IOException {
         try (FileChannel channel = FileChannel.open(path, StandardOpenOption.READ);

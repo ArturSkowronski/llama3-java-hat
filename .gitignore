@@ -3,6 +3,9 @@
 build/
 !gradle/wrapper/gradle-wrapper.jar
 
+Agent.md
+Claude.md
+
 # IDE
 .idea/
 *.iml
