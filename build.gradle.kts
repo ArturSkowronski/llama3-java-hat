@@ -14,6 +14,14 @@ dependencies {
     implementation(files("/Users/askowronski/GitHub/babylon/hat/build/hat-core-1.0.jar"))
     implementation(files("/Users/askowronski/GitHub/babylon/hat/build/hat-optkl-1.0.jar"))
     implementation(files("/Users/askowronski/GitHub/babylon/hat/build/hat-backend-java-seq-1.0.jar"))
+
+    testImplementation("org.junit.jupiter:junit-jupiter:6.0.0")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+}
+
+tasks.test {
+    useJUnitPlatform()
+    jvmArgs(application.applicationDefaultJvmArgs)
 }
 
 java {

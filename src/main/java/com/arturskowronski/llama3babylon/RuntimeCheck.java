@@ -1,7 +1,6 @@
-package com.arturskowronski.llama3babylon.hat;
+package com.arturskowronski.llama3babylon;
 
-import java.lang.module.ModuleDescriptor;
-import java.util.stream.Collectors;
+import com.arturskowronski.llama3babylon.samples.HATSample;
 
 public class RuntimeCheck {
     public static void main(String[] args) {
