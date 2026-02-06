@@ -3,6 +3,9 @@
 build/
 !gradle/wrapper/gradle-wrapper.jar
 
+Agent.md
+Claude.md
+
 # IDE
 .idea/
 *.iml
@@ -11,5 +14,12 @@ build/
 # OS
 .DS_Store
 
-# Claude
+# Coding Assistants
 .claude/
+.junie/
+GPU_LLAMA3_HAT_ANALYSIS.md
+
+*.gguf
+
+# Results
+results/
