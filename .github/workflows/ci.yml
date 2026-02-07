@@ -92,6 +92,8 @@ jobs:
           find babylon-jdk -name "java" -type f 2>/dev/null | head -5 || echo "No java binary found"
           echo "=== Checking for HAT ==="
           find babylon-jdk -name "hat-core*.jar" -type f 2>/dev/null | head -5 || echo "No HAT jars found"
+          echo "=== Making JDK binaries executable ==="
+          chmod -R +x babylon-jdk/build/linux-x86_64-server-release/images/jdk/bin/
           echo "JAVA_BABYLON_ROOT=$(pwd)/babylon-jdk" >> $GITHUB_ENV
           chmod +x gradlew
 
