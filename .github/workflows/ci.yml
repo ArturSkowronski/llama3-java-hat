@@ -1,0 +1,121 @@
+name: Build Babylon and Run Tests
+
+on:
+  push:
+    branches: [ main, github-actions ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build-babylon:
+    runs-on: ubuntu-latest
+    outputs:
+      babylon-home: ${{ steps.set-path.outputs.babylon-home }}
+    steps:
+      - name: Checkout Babylon
+        uses: actions/checkout@v4
+        with:
+          repository: openjdk/babylon
+          path: babylon
+
+      - name: Cache Babylon JDK and HAT
+        id: cache-babylon
+        uses: actions/cache@v4
+        with:
+          path: |
+            babylon/build/linux-x86_64-server-release/images/jdk
+            babylon/hat/build
+          key: ${{ runner.os }}-babylon-hat-${{ hashFiles('babylon/.git/refs/heads/master') }}
+
+      - name: Install Build Dependencies
+        if: steps.cache-babylon.outputs.cache-hit != 'true'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential libx11-dev libxext-dev libxrender-dev libxrandr-dev libxtst-dev libxt-dev libcups2-dev libasound2-dev libfontconfig1-dev autoconf
+
+      - name: Setup Boot JDK
+        if: steps.cache-babylon.outputs.cache-hit != 'true'
+        uses: actions/setup-java@v4
+        with:
+          java-version: '23'
+          distribution: 'temurin'
+
+      - name: Configure and Build Babylon
+        if: steps.cache-babylon.outputs.cache-hit != 'true'
+        run: |
+          cd babylon
+          bash configure
+          make images
+
+      - name: Build HAT
+        if: steps.cache-babylon.outputs.cache-hit != 'true'
+        run: |
+          cd babylon/hat
+          export JAVA_HOME=$(pwd)/../build/linux-x86_64-server-release/images/jdk
+          export PATH=$JAVA_HOME/bin:$PATH
+          bash hat/bootstrap.bash
+          java -cp hat/job.jar --enable-preview --source 26 hat.java bld
+
+      - name: Set Babylon Home Output
+        id: set-path
+        run: echo "babylon-home=$(pwd)/babylon/build/linux-x86_64-server-release/images/jdk" >> $GITHUB_OUTPUT
+
+      - name: Upload Babylon Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: babylon-jdk
+          path: |
+            babylon/build/linux-x86_64-server-release/images/jdk
+            babylon/hat/build
+          include-hidden-files: true
+          retention-days: 7
+
+  build-and-test:
+    needs: build-babylon
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Project
+        uses: actions/checkout@v4
+
+      - name: Download Babylon Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: babylon-jdk
+          path: babylon-jdk
+
+      - name: Setup Environment
+        run: |
+          echo "=== Debug: Listing artifact contents ==="
+          ls -la babylon-jdk/
+          echo "=== Checking for JDK ==="
+          find babylon-jdk -name "java" -type f 2>/dev/null | head -5 || echo "No java binary found"
+          echo "=== Checking for HAT ==="
+          find babylon-jdk -name "hat-core*.jar" -type f 2>/dev/null | head -5 || echo "No HAT jars found"
+          echo "=== Making JDK binaries executable ==="
+          JDK_PATH=babylon-jdk/build/linux-x86_64-server-release/images/jdk
+          chmod -R +x $JDK_PATH/bin/
+          # Also fix lib executables (jspawnhelper, etc.)
+          find $JDK_PATH/lib -type f -name "jspawnhelper" -exec chmod +x {} \;
+          find $JDK_PATH/lib -type f -name "*.so" -exec chmod +x {} \;
+          echo "JAVA_BABYLON_ROOT=$(pwd)/babylon-jdk" >> $GITHUB_ENV
+          chmod +x gradlew
+
+      - name: Build and Test
+        run: |
+          export JAVA_HOME=$JAVA_BABYLON_ROOT/build/linux-x86_64-server-release/images/jdk
+          export PATH=$JAVA_HOME/bin:$PATH
+          ./gradlew build
+          ./gradlew test
+
+      - name: Download TinyLlama
+        run: |
+          chmod +x scripts/download_tinyllama.sh
+          ./scripts/download_tinyllama.sh
+
+      - name: Run Integration Tests
+        run: |
+          export JAVA_HOME=$JAVA_BABYLON_ROOT/build/linux-x86_64-server-release/images/jdk
+          export PATH=$JAVA_HOME/bin:$PATH
+          export TINY_LLAMA_PATH=$(pwd)/tinyllama-1.1b-chat-v1.0.Q2_K.gguf
+          ./gradlew integrationTest
