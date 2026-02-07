@@ -93,7 +93,11 @@ jobs:
           echo "=== Checking for HAT ==="
           find babylon-jdk -name "hat-core*.jar" -type f 2>/dev/null | head -5 || echo "No HAT jars found"
           echo "=== Making JDK binaries executable ==="
-          chmod -R +x babylon-jdk/build/linux-x86_64-server-release/images/jdk/bin/
+          JDK_PATH=babylon-jdk/build/linux-x86_64-server-release/images/jdk
+          chmod -R +x $JDK_PATH/bin/
+          # Also fix lib executables (jspawnhelper, etc.)
+          find $JDK_PATH/lib -type f -name "jspawnhelper" -exec chmod +x {} \;
+          find $JDK_PATH/lib -type f -name "*.so" -exec chmod +x {} \;
           echo "JAVA_BABYLON_ROOT=$(pwd)/babylon-jdk" >> $GITHUB_ENV
           chmod +x gradlew
 
