@@ -87,13 +87,19 @@ jobs:
       - name: Setup Environment
         run: |
           echo "JAVA_BABYLON_ROOT=$(pwd)/babylon-jdk" >> $GITHUB_ENV
-          mkdir -p $(pwd)/babylon-jdk/hat
-          mv $(pwd)/babylon-jdk/build $(pwd)/babylon-jdk/hat/build
+          # The artifact was uploaded from babylon/ folder, so paths inside it are preserved relative to babylon/
+          # Least common ancestor was babylon/, so artifact contains:
+          #   build/linux-x86_64-server-release/images/jdk/...
+          #   hat/build/...
+          # We want JAVA_BABYLON_ROOT to point to where the 'jdk' and 'hat/build' are accessible.
+          # If we downloaded to 'babylon-jdk', then:
+          #   JAVA_HOME should be babylon-jdk/build/linux-x86_64-server-release/images/jdk
+          #   hat/build should be in babylon-jdk/hat/build
           chmod +x gradlew
 
       - name: Build and Test
         run: |
-          export JAVA_HOME=$JAVA_BABYLON_ROOT/jdk
+          export JAVA_HOME=$JAVA_BABYLON_ROOT/build/linux-x86_64-server-release/images/jdk
           export PATH=$JAVA_HOME/bin:$PATH
           ./gradlew build
           ./gradlew test
@@ -105,7 +111,7 @@ jobs:
 
       - name: Run Integration Tests
         run: |
-          export JAVA_HOME=$JAVA_BABYLON_ROOT/jdk
+          export JAVA_HOME=$JAVA_BABYLON_ROOT/build/linux-x86_64-server-release/images/jdk
           export PATH=$JAVA_HOME/bin:$PATH
           export TINY_LLAMA_PATH=$(pwd)/tinyllama-1.1b-chat-v1.0.Q2_K.gguf
           ./gradlew integrationTest
