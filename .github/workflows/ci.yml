@@ -87,8 +87,8 @@ jobs:
       - name: Setup Environment
         run: |
           echo "JAVA_BABYLON_ROOT=$(pwd)/babylon-jdk" >> $GITHUB_ENV
-          mkdir -p $(pwd)/babylon-jdk/jdk/hat
-          mv $(pwd)/babylon-jdk/build $(pwd)/babylon-jdk/jdk/hat/build
+          mkdir -p $(pwd)/babylon-jdk/hat
+          mv $(pwd)/babylon-jdk/build $(pwd)/babylon-jdk/hat/build
           chmod +x gradlew
 
       - name: Build and Test
