@@ -86,14 +86,14 @@ jobs:
 
       - name: Setup Environment
         run: |
-          echo "JAVA_BABYLON_HOME=$(pwd)/babylon-jdk/jdk" >> $GITHUB_ENV
+          echo "JAVA_BABYLON_ROOT=$(pwd)/babylon-jdk" >> $GITHUB_ENV
           mkdir -p $(pwd)/babylon-jdk/jdk/hat
           mv $(pwd)/babylon-jdk/build $(pwd)/babylon-jdk/jdk/hat/build
           chmod +x gradlew
 
       - name: Build and Test
         run: |
-          export JAVA_HOME=$JAVA_BABYLON_HOME
+          export JAVA_HOME=$JAVA_BABYLON_ROOT/jdk
           export PATH=$JAVA_HOME/bin:$PATH
           ./gradlew build
           ./gradlew test
@@ -105,7 +105,7 @@ jobs:
 
       - name: Run Integration Tests
         run: |
-          export JAVA_HOME=$JAVA_BABYLON_HOME
+          export JAVA_HOME=$JAVA_BABYLON_ROOT/jdk
           export PATH=$JAVA_HOME/bin:$PATH
           export TINY_LLAMA_PATH=$(pwd)/tinyllama-1.1b-chat-v1.0.Q2_K.gguf
           ./gradlew integrationTest
