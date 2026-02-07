@@ -3,7 +3,13 @@ plugins {
     java
 }
 
-val babylonHome = System.getenv("JAVA_BABYLON_HOME") ?: throw GradleException("JAVA_BABYLON_HOME environment variable is not set")
+val babylonRoot = System.getenv("JAVA_BABYLON_ROOT") ?: throw GradleException("JAVA_BABYLON_ROOT environment variable is not set")
+val babylonHome = if (System.getProperty("os.name").contains("Mac")) {
+    val macJDK = "$babylonRoot/Contents/Home"
+    if (File(macJDK).exists()) macJDK else babylonRoot
+} else {
+    babylonRoot
+}
 
 repositories {
     mavenCentral()
