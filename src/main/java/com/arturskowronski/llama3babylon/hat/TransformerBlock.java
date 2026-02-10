@@ -109,12 +109,14 @@ public class TransformerBlock {
         float ropeTheta = 500000.0f; // Llama 3 default
 
         // 1. RMSNorm (attn_norm)
-        rmsNorm.apply(x, attnNormWeight, normOut, hiddenSize);
+        rmsNorm.apply(x, attnNormWeight, hiddenSize);
+        // Note: x is modified in-place by rmsNorm according to its current implementation.
+        // Wait, RMSNorm.apply(input, weight, size) modifies 'input' in-place.
 
         // 2. QKV Projection
-        gemv.apply(wq, normOut, q, numHeads * headDim, hiddenSize);
-        gemv.apply(wk, normOut, k, numKvHeads * headDim, hiddenSize);
-        gemv.apply(wv, normOut, v, numKvHeads * headDim, hiddenSize);
+        gemv.apply(wq, x, q, numHeads * headDim, hiddenSize);
+        gemv.apply(wk, x, k, numKvHeads * headDim, hiddenSize);
+        gemv.apply(wv, x, v, numKvHeads * headDim, hiddenSize);
 
         // 3. RoPE
         rope.apply(q, pos, numHeads, headDim, ropeTheta);
@@ -122,26 +124,21 @@ public class TransformerBlock {
 
         // 4. Update KV Cache & Multi-head Attention (Simplified for now: single token, no full GQA yet)
         // TODO: Full GQA implementation using attention and softmax kernels
-        // For now, we are just implementing the flow. 
-        // Actual Attention implementation will need more logic for causal masking and KV cache.
 
         // 5. Output Projection
-        // gemv.apply(wo, attnOut, normOut, hiddenSize, hiddenSize); // normOut reused as temp
         
         // 6. Residual Add
-        // add(x, normOut, hiddenSize);
 
         // 7. RMSNorm (ffn_norm)
-        rmsNorm.apply(x, ffnNormWeight, normOut, hiddenSize);
+        rmsNorm.apply(x, ffnNormWeight, hiddenSize);
 
         // 8. Feed-Forward (SwiGLU)
-        gemv.apply(w1, normOut, ffn1Out, intermediateSize, hiddenSize);
-        gemv.apply(w3, normOut, ffn3Out, intermediateSize, hiddenSize);
+        gemv.apply(w1, x, ffn1Out, intermediateSize, hiddenSize);
+        gemv.apply(w3, x, ffn3Out, intermediateSize, hiddenSize);
         silu.apply(ffn1Out, intermediateSize);
         // elementWiseMul(ffn1Out, ffn3Out, intermediateSize);
         gemv.apply(w2, ffn1Out, ffnOut, hiddenSize, intermediateSize);
 
         // 9. Residual Add
-        // add(x, ffnOut, hiddenSize);
     }
 }
