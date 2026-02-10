@@ -168,47 +168,4 @@ public class LlamaModel {
     public boolean hasTensor(String tensorName) {
         return metadata.tensors().stream().anyMatch(t -> t.name().equals(tensorName));
     }
-
-    public static void main(String[] args) throws IOException {
-        if (args.length == 0) {
-            System.out.println("Usage: LlamaModel <path_to_gguf>");
-            return;
-        }
-
-        Path path = Path.of(args[0]);
-        LlamaModel model = new LlamaModel(path);
-
-        System.out.println("=== Llama 3.2 1B Instruct Model ===");
-        System.out.println("Model Path: " + model.getModelPath());
-        System.out.println("GGUF Version: " + model.getMetadata().version());
-        System.out.println("Tensor Count: " + model.getMetadata().tensorCount());
-        System.out.println();
-        System.out.println("Architecture Constants:");
-        System.out.println("  Hidden Size: " + HIDDEN_SIZE);
-        System.out.println("  Intermediate Size: " + INTERMEDIATE_SIZE);
-        System.out.println("  Num Layers: " + NUM_LAYERS);
-        System.out.println("  Num Heads: " + NUM_HEADS);
-        System.out.println("  Num KV Heads: " + NUM_KV_HEADS);
-        System.out.println("  Head Dim: " + HEAD_DIM);
-        System.out.println("  Vocab Size: " + VOCAB_SIZE);
-
-        // Demo: try to map a tensor if available
-        System.out.println();
-        System.out.println("Tensor Mapping Demo:");
-        for (var tensor : model.getMetadata().tensors()) {
-            if (tensor.type() == 0 || tensor.type() == 1) {
-                System.out.println("  Loading: " + tensor.name() + " (type=" + tensor.type() + ")");
-                try {
-                    F32Array arr = model.mapTensor(tensor.name());
-                    System.out.println("    Loaded " + arr.length() + " floats");
-                    if (arr.length() > 0) {
-                        System.out.println("    First value: " + arr.array(0));
-                    }
-                    break; // Just demo one tensor
-                } catch (IOException e) {
-                    System.out.println("    Failed: " + e.getMessage());
-                }
-            }
-        }
-    }
 }
