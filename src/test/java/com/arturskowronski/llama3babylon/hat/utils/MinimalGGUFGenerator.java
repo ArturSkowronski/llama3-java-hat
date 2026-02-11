@@ -19,11 +19,15 @@ public class MinimalGGUFGenerator {
      * Generates a GGUF file with llama architecture and optional F32 tensor.
      */
     public static void generateLlamaWithTensor(Path path, String tensorName, float[] tensorData) throws IOException {
-        generateWithOptions(path, "TestLlama", "llama", tensorName, tensorData);
+        generateWithOptions(path, "TestLlama", "llama", new String[]{tensorName}, new float[][]{tensorData});
+    }
+
+    public static void generateLlamaWithTensors(Path path, String[] tensorNames, float[][] tensorData) throws IOException {
+        generateWithOptions(path, "TestLlama", "llama", tensorNames, tensorData);
     }
 
     private static void generateWithOptions(Path path, String name, String architecture, 
-                                            String tensorName, float[] tensorData) throws IOException {
+                                            String[] tensorNames, float[][] tensorData) throws IOException {
         try (FileChannel channel = FileChannel.open(path, StandardOpenOption.CREATE, StandardOpenOption.WRITE, StandardOpenOption.READ, StandardOpenOption.TRUNCATE_EXISTING);
              Arena arena = Arena.ofConfined()) {
             
@@ -31,7 +35,7 @@ public class MinimalGGUFGenerator {
             String archKey = "general.architecture";
             
             int kvCount = (architecture != null) ? 2 : 1;
-            int tensorCount = (tensorName != null && tensorData != null) ? 1 : 0;
+            int tensorCount = (tensorNames != null && tensorData != null) ? tensorNames.length : 0;
             
             // Calculate sizes
             long headerSize = 4 + 4 + 8 + 8; // magic + version + tensorCount + kvCount
@@ -41,14 +45,30 @@ public class MinimalGGUFGenerator {
             // Tensor info size: name (8 + len) + n_dims (4) + shape (8 per dim) + type (4) + offset (8)
             long tensorInfoSize = 0;
             if (tensorCount > 0) {
-                tensorInfoSize = 8 + tensorName.length() + 4 + 8 + 4 + 8; // 1D tensor
+                for (String tensorName : tensorNames) {
+                    tensorInfoSize += 8 + tensorName.length() + 4 + 8 + 4 + 8; // 1D tensor
+                }
             }
             
             long metadataEnd = headerSize + kv1Size + kv2Size + tensorInfoSize;
             long alignment = 32;
             long dataStart = (metadataEnd + alignment - 1) & ~(alignment - 1);
-            long tensorDataSize = (tensorData != null) ? tensorData.length * 4L : 0;
-            long totalSize = dataStart + tensorDataSize;
+            
+            long totalTensorDataSize = 0;
+            long[] tensorOffsets = new long[tensorCount];
+            if (tensorCount > 0) {
+                for (int i = 0; i < tensorCount; i++) {
+                    tensorOffsets[i] = totalTensorDataSize;
+                    totalTensorDataSize += tensorData[i].length * 4L;
+                    // Align each tensor data if needed, but for simplicity we'll just stack them
+                    // GGUF requires data to be aligned to 'alignment' from start of file.
+                    // Actually, tensor offsets are relative to dataStart, and dataStart is already aligned.
+                    // We should probably align each tensor offset if we want to be strict.
+                    totalTensorDataSize = (totalTensorDataSize + alignment - 1) & ~(alignment - 1);
+                }
+            }
+
+            long totalSize = dataStart + totalTensorDataSize;
             
             MemorySegment segment = channel.map(FileChannel.MapMode.READ_WRITE, 0, totalSize, arena);
             
@@ -78,21 +98,26 @@ public class MinimalGGUFGenerator {
             
             // Tensor info (optional)
             if (tensorCount > 0) {
-                offset = writeString(segment, offset, tensorName);
-                segment.set(ValueLayout.JAVA_INT_UNALIGNED, offset, 1); // n_dims = 1
-                offset += 4;
-                segment.set(ValueLayout.JAVA_LONG_UNALIGNED, offset, tensorData.length); // shape[0]
-                offset += 8;
-                segment.set(ValueLayout.JAVA_INT_UNALIGNED, offset, 0); // type = F32
-                offset += 4;
-                segment.set(ValueLayout.JAVA_LONG_UNALIGNED, offset, 0); // offset from data start
-                offset += 8;
+                for (int i = 0; i < tensorCount; i++) {
+                    offset = writeString(segment, offset, tensorNames[i]);
+                    segment.set(ValueLayout.JAVA_INT_UNALIGNED, offset, 1); // n_dims = 1
+                    offset += 4;
+                    segment.set(ValueLayout.JAVA_LONG_UNALIGNED, offset, tensorData[i].length); // shape[0]
+                    offset += 8;
+                    segment.set(ValueLayout.JAVA_INT_UNALIGNED, offset, 0); // type = F32
+                    offset += 4;
+                    segment.set(ValueLayout.JAVA_LONG_UNALIGNED, offset, tensorOffsets[i]); // offset from data start
+                    offset += 8;
+                }
             }
             
-            // Write tensor data at aligned position
-            if (tensorData != null) {
-                for (int i = 0; i < tensorData.length; i++) {
-                    segment.set(ValueLayout.JAVA_FLOAT_UNALIGNED, dataStart + (long) i * 4, tensorData[i]);
+            // Write tensor data at aligned positions
+            if (tensorCount > 0) {
+                for (int i = 0; i < tensorCount; i++) {
+                    long tensorDataStart = dataStart + tensorOffsets[i];
+                    for (int j = 0; j < tensorData[i].length; j++) {
+                        segment.set(ValueLayout.JAVA_FLOAT_UNALIGNED, tensorDataStart + (long) j * 4, tensorData[i][j]);
+                    }
                 }
             }
         }

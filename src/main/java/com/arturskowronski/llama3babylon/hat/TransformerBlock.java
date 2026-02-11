@@ -54,6 +54,7 @@ public class TransformerBlock {
     private final F32Array ffn1Out;
     private final F32Array ffn3Out;
     private final F32Array ffnOut;
+    private final F32Array residual;
 
     public TransformerBlock(LlamaModel model, int layerIdx) throws IOException {
         this.model = model;
@@ -90,6 +91,7 @@ public class TransformerBlock {
         this.ffn1Out = F32Array.create(acc, LlamaModel.INTERMEDIATE_SIZE);
         this.ffn3Out = F32Array.create(acc, LlamaModel.INTERMEDIATE_SIZE);
         this.ffnOut = F32Array.create(acc, LlamaModel.HIDDEN_SIZE);
+        this.residual = F32Array.create(acc, LlamaModel.HIDDEN_SIZE);
     }
 
     /**
@@ -108,13 +110,14 @@ public class TransformerBlock {
         int headDim = LlamaModel.HEAD_DIM;
         float ropeTheta = 500000.0f; // Llama 3 default
 
+        // Save residual for Step 6
+        copy(x, residual, hiddenSize);
+
         // 1. RMSNorm (attn_norm)
         rmsNorm.apply(x, attnNormWeight, hiddenSize);
-        // Note: x is modified in-place by rmsNorm according to its current implementation.
-        // Wait, RMSNorm.apply(input, weight, size) modifies 'input' in-place.
 
         // 2. QKV Projection
-        gemv.apply(wq, x, q, numHeads * headDim, hiddenSize);
+        gemv.apply(wq, x, q, hiddenSize, hiddenSize);
         gemv.apply(wk, x, k, numKvHeads * headDim, hiddenSize);
         gemv.apply(wv, x, v, numKvHeads * headDim, hiddenSize);
 
@@ -122,12 +125,22 @@ public class TransformerBlock {
         rope.apply(q, pos, numHeads, headDim, ropeTheta);
         rope.apply(k, pos, numKvHeads, headDim, ropeTheta);
 
-        // 4. Update KV Cache & Multi-head Attention (Simplified for now: single token, no full GQA yet)
+        // 4. Update KV Cache & Multi-head Attention
+        // For single-token inference, we'd append k/v to caches here
+        // Then compute attention against all previous tokens
         // TODO: Full GQA implementation using attention and softmax kernels
 
+        // Placeholder: use q as attnOut for now to complete the skeleton
+        copy(q, attnOut, hiddenSize);
+
         // 5. Output Projection
+        gemv.apply(wo, attnOut, x, hiddenSize, hiddenSize);
         
         // 6. Residual Add
+        add(x, residual, hiddenSize);
+
+        // Save residual for Step 9
+        copy(x, residual, hiddenSize);
 
         // 7. RMSNorm (ffn_norm)
         rmsNorm.apply(x, ffnNormWeight, hiddenSize);
@@ -136,9 +149,28 @@ public class TransformerBlock {
         gemv.apply(w1, x, ffn1Out, intermediateSize, hiddenSize);
         gemv.apply(w3, x, ffn3Out, intermediateSize, hiddenSize);
         silu.apply(ffn1Out, intermediateSize);
-        // elementWiseMul(ffn1Out, ffn3Out, intermediateSize);
+        elementWiseMul(ffn1Out, ffn3Out, intermediateSize);
         gemv.apply(w2, ffn1Out, ffnOut, hiddenSize, intermediateSize);
 
         // 9. Residual Add
+        add(x, ffnOut, hiddenSize);
+    }
+
+    private void copy(F32Array src, F32Array dst, int size) {
+        for (int i = 0; i < size; i++) {
+            dst.array(i, src.array(i));
+        }
+    }
+
+    private void add(F32Array a, F32Array b, int size) {
+        for (int i = 0; i < size; i++) {
+            a.array(i, a.array(i) + b.array(i));
+        }
+    }
+
+    private void elementWiseMul(F32Array a, F32Array b, int size) {
+        for (int i = 0; i < size; i++) {
+            a.array(i, a.array(i) * b.array(i));
+        }
     }
 }
