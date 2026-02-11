@@ -1,0 +1,54 @@
+package com.arturskowronski.llama3babylon.hat.kernels;
+
+import hat.Accelerator;
+import hat.ComputeContext;
+import hat.KernelContext;
+import hat.NDRange;
+import hat.buffer.F32Array;
+import jdk.incubator.code.Reflect;
+
+/**
+ * GEMV (Matrix-Vector Multiplication) kernel for Llama 3.2 1B Instruct.
+ * 
+ * Computes: y = Ax
+ * where A is a matrix [rows, cols] and x is a vector [cols].
+ */
+public class GEMV {
+
+    private final Accelerator accelerator;
+
+    public GEMV(Accelerator accelerator) {
+        this.accelerator = accelerator;
+    }
+
+    /**
+     * Computes Matrix-Vector multiplication y = Ax.
+     * 
+     * @param matrix input matrix A [rows, cols]
+     * @param vector input vector x [cols]
+     * @param result output vector y [rows]
+     * @param rows number of rows in matrix
+     * @param cols number of columns in matrix
+     */
+    public void apply(F32Array matrix, F32Array vector, F32Array result, int rows, int cols) {
+        accelerator.compute((Accelerator.@Reflect Compute) cc ->
+                dispatchGEMV(cc, matrix, vector, result, rows, cols)
+        );
+    }
+
+    @Reflect
+    public static void gemvKernel(KernelContext kc, F32Array matrix, F32Array vector, F32Array result, int cols) {
+        int row = kc.gix;
+        float sum = 0.0f;
+        int rowOffset = row * cols;
+        for (int c = 0; c < cols; c++) {
+            sum += matrix.array(rowOffset + c) * vector.array(c);
+        }
+        result.array(row, sum);
+    }
+
+    @Reflect
+    public static void dispatchGEMV(ComputeContext cc, F32Array matrix, F32Array vector, F32Array result, int rows, int cols) {
+        cc.dispatchKernel(NDRange.of1D(rows), kc -> gemvKernel(kc, matrix, vector, result, cols));
+    }
+}

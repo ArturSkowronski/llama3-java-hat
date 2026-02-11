@@ -34,11 +34,12 @@ The RMSNorm and SiLU kernels (PR #10) have been implemented. The next step is to
 | 3 | Softmax kernel + CI resilience | ✅ Merged | #8 |
 | 4 | Attention kernel (GQA) | ✅ Done | #9 |
 | 5 | RMSNorm and SiLU kernels | ✅ Done | #10 |
-| 6 | **Single transformer block** | 🔜 Next | - |
-| 7 | KV-Cache management | Pending | - |
-| 8 | Full forward pass (16 layers) | Pending | - |
-| 9 | BPE Tokenizer | Pending | - |
-| 10 | End-to-end text generation | Pending | - |
+| 6 | GEMV and RoPE kernels | ✅ Done | #11 |
+| 7 | **Single transformer block** | ✅ Done | #11 |
+| 8 | KV-Cache management | Pending | - |
+| 9 | Full forward pass (16 layers) | Pending | - |
+| 10 | BPE Tokenizer | Pending | - |
+| 11 | End-to-end text generation | Pending | - |
 
 **Attention Kernel Requirements:**
 *   Grouped-Query Attention: 32 query heads, 8 KV heads (4:1 ratio)
@@ -67,6 +68,7 @@ The RMSNorm and SiLU kernels (PR #10) have been implemented. The next step is to
 3.  **PR #7 - Softmax Kernel**: Numerically stable softmax with 5 unit tests.
 4.  **PR #9 - Attention Kernel**: Grouped-Query Attention (GQA) implementation with unit tests.
 5.  **PR #10 - RMSNorm & SiLU Kernels**: RMSNorm and SiLU activation kernels with unit tests.
+6.  **PR #11 - GEMV, RoPE & TransformerBlock**: Matrix-vector multiplication, Rotary Position Embeddings, and the orchestrator for a single transformer layer.
 
 **Code Review Action Items (from PR #7):**
 - [ ] Remove GPU dispatch from `Softmax.apply()`, make fully CPU-based
@@ -76,6 +78,6 @@ The RMSNorm and SiLU kernels (PR #10) have been implemented. The next step is to
 ### 7. Session Handoff Notes
 
 For the next session, the developer should:
-1.  **Merge open PRs** (#9, #10) if approved.
-2.  **Start Single Transformer Block implementation**: Create a `TransformerBlock` class that orchestrates the kernels.
-3.  **Integrate with LlamaModel**: Begin connecting the kernels to the `LlamaModel`'s tensor mapping logic.
+1.  **Complete GQA implementation**: The `TransformerBlock.forward` currently has a placeholder for the full GQA attention mechanism. This needs to be implemented using the `Attention` and `Softmax` kernels, including KV-cache updates.
+2.  **Verify Forward Pass**: Add more detailed tests for `TransformerBlock` that verify numerical correctness of the full forward pass against a known baseline.
+3.  **Full Model Forward**: Once a single block is verified, implement the full 16-layer forward pass in `LlamaModel`.
