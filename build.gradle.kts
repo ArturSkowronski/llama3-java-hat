@@ -48,6 +48,10 @@ tasks.register<Test>("integrationTest") {
     if (tinyLlamaPath != null) {
         environment("TINY_LLAMA_PATH", tinyLlamaPath)
     }
+    val llamaFp16Path = System.getenv("LLAMA_FP16_PATH")
+    if (llamaFp16Path != null) {
+        environment("LLAMA_FP16_PATH", llamaFp16Path)
+    }
 }
 
 java {

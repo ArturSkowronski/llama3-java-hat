@@ -1,0 +1,159 @@
+package com.arturskowronski.llama3babylon.hat;
+
+import hat.Accelerator;
+import hat.buffer.F32Array;
+import com.arturskowronski.llama3babylon.hat.kernels.GEMV;
+import com.arturskowronski.llama3babylon.hat.kernels.RMSNorm;
+
+import java.io.IOException;
+import java.nio.file.Path;
+import java.util.Arrays;
+
+/**
+ * End-to-end inference pipeline for Llama 3.2 1B Instruct.
+ *
+ * Pipeline: embedding lookup → 16 transformer layers → final RMSNorm → classifier → logits
+ */
+public class LlamaInference {
+
+    private static final int EOS_TOKEN = 128001;
+
+    private final LlamaModel model;
+    private final TransformerBlock[] layers;
+    private final F32Array[] kCaches;
+    private final F32Array[] vCaches;
+
+    // Global weights
+    private final F32Array tokenEmbedding;
+    private final F32Array outputNormWeight;
+    private final F32Array outputWeight;
+
+    // Kernels
+    private final RMSNorm rmsNorm;
+    private final GEMV gemv;
+
+    // Working buffers
+    private final F32Array x;
+    private final F32Array logits;
+
+    public LlamaInference(Path ggufPath) throws IOException {
+        this.model = new LlamaModel(ggufPath);
+        Accelerator acc = model.getAccelerator();
+
+        // Load global weights
+        this.tokenEmbedding = model.mapTensor("token_embd.weight");
+        this.outputNormWeight = model.mapTensor("output_norm.weight");
+        this.outputWeight = model.mapTensor("output.weight");
+
+        // Initialize kernels
+        this.rmsNorm = new RMSNorm(acc);
+        this.gemv = new GEMV(acc);
+
+        // Allocate working buffers
+        this.x = F32Array.create(acc, LlamaModel.HIDDEN_SIZE);
+        this.logits = F32Array.create(acc, LlamaModel.VOCAB_SIZE);
+
+        // Prime GEMV with classifier matrix (128256x2048 — largest in model)
+        // This forces HAT backend to cache buffer bounds large enough for all later dispatches
+        gemv.apply(outputWeight, x, logits, LlamaModel.VOCAB_SIZE, LlamaModel.HIDDEN_SIZE);
+
+        // Allocate KV caches (one pair per layer)
+        int kvDim = LlamaModel.NUM_KV_HEADS * LlamaModel.HEAD_DIM;
+        this.kCaches = new F32Array[LlamaModel.NUM_LAYERS];
+        this.vCaches = new F32Array[LlamaModel.NUM_LAYERS];
+        for (int l = 0; l < LlamaModel.NUM_LAYERS; l++) {
+            kCaches[l] = F32Array.create(acc, LlamaModel.MAX_SEQ_LEN * kvDim);
+            vCaches[l] = F32Array.create(acc, LlamaModel.MAX_SEQ_LEN * kvDim);
+        }
+
+        // Create transformer blocks (after GEMV priming)
+        this.layers = new TransformerBlock[LlamaModel.NUM_LAYERS];
+        for (int l = 0; l < LlamaModel.NUM_LAYERS; l++) {
+            layers[l] = new TransformerBlock(model, l);
+        }
+    }
+
+    /**
+     * Forward pass for a single token at a given position.
+     *
+     * @param token input token ID
+     * @param pos position in the sequence
+     * @return logits array [VOCAB_SIZE]
+     */
+    public float[] forward(int token, int pos) {
+        int hiddenSize = LlamaModel.HIDDEN_SIZE;
+        int vocabSize = LlamaModel.VOCAB_SIZE;
+
+        // 1. Embedding lookup: copy row from embedding table
+        int offset = token * hiddenSize;
+        for (int i = 0; i < hiddenSize; i++) {
+            x.array(i, tokenEmbedding.array(offset + i));
+        }
+
+        // 2. Transformer layers
+        for (int l = 0; l < LlamaModel.NUM_LAYERS; l++) {
+            layers[l].forward(x, pos, kCaches[l], vCaches[l]);
+        }
+
+        // 3. Final RMSNorm
+        rmsNorm.apply(x, outputNormWeight, hiddenSize);
+
+        // 4. Classifier GEMV (outputWeight @ x → logits)
+        gemv.apply(outputWeight, x, logits, vocabSize, hiddenSize);
+
+        // 5. Copy to plain float[]
+        float[] result = new float[vocabSize];
+        for (int i = 0; i < vocabSize; i++) {
+            result[i] = logits.array(i);
+        }
+        return result;
+    }
+
+    /**
+     * Generate tokens from a prompt using greedy decoding.
+     *
+     * @param promptTokens input token IDs
+     * @param maxNewTokens maximum number of tokens to generate
+     * @return generated token IDs (excluding prompt)
+     */
+    public int[] generate(int[] promptTokens, int maxNewTokens) {
+        int[] result = new int[maxNewTokens];
+        int generated = 0;
+
+        // Prefill: process all prompt tokens
+        float[] lastLogits = null;
+        for (int i = 0; i < promptTokens.length; i++) {
+            lastLogits = forward(promptTokens[i], i);
+        }
+
+        // First generated token from last prefill logits
+        int nextToken = argmax(lastLogits);
+        result[0] = nextToken;
+        generated = 1;
+
+        // Auto-regressive generation
+        while (generated < maxNewTokens && nextToken != EOS_TOKEN) {
+            lastLogits = forward(nextToken, promptTokens.length + generated - 1);
+            nextToken = argmax(lastLogits);
+            result[generated] = nextToken;
+            generated++;
+        }
+
+        return Arrays.copyOf(result, generated);
+    }
+
+    /**
+     * Returns the index of the maximum value in the array.
+     */
+    public static int argmax(float[] values) {
+        int maxIdx = 0;
+        float maxVal = values[0];
+        for (int i = 1; i < values.length; i++) {
+            if (values[i] > maxVal) {
+                maxVal = values[i];
+                maxIdx = i;
+            }
+        }
+        return maxIdx;
+    }
+}
