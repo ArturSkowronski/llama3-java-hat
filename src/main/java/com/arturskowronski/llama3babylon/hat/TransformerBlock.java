@@ -56,6 +56,9 @@ public class TransformerBlock {
     private final F32Array ffnOut;
     private final F32Array residual;
 
+    // Plain Java array for per-head attention scores (avoids HAT buffer caching bug)
+    private final float[] att;
+
     public TransformerBlock(LlamaModel model, int layerIdx) throws IOException {
         this.model = model;
         this.layerIdx = layerIdx;
@@ -92,6 +95,7 @@ public class TransformerBlock {
         this.ffn3Out = F32Array.create(acc, LlamaModel.INTERMEDIATE_SIZE);
         this.ffnOut = F32Array.create(acc, LlamaModel.HIDDEN_SIZE);
         this.residual = F32Array.create(acc, LlamaModel.HIDDEN_SIZE);
+        this.att = new float[LlamaModel.MAX_SEQ_LEN];
     }
 
     /**
@@ -125,13 +129,47 @@ public class TransformerBlock {
         rope.apply(q, pos, numHeads, headDim, ropeTheta);
         rope.apply(k, pos, numKvHeads, headDim, ropeTheta);
 
-        // 4. Update KV Cache & Multi-head Attention
-        // For single-token inference, we'd append k/v to caches here
-        // Then compute attention against all previous tokens
-        // TODO: Full GQA implementation using attention and softmax kernels
+        // 4. Update KV Cache & Multi-head Attention (plain Java, no HAT dispatch)
+        int kvDim = numKvHeads * headDim;
+        int kvMul = numHeads / numKvHeads;
 
-        // Placeholder: use q as attnOut for now to complete the skeleton
-        copy(q, attnOut, hiddenSize);
+        // Store k, v into KV caches at current position
+        int cacheOffset = pos * kvDim;
+        for (int i = 0; i < kvDim; i++) {
+            kCache.array(cacheOffset + i, k.array(i));
+            vCache.array(cacheOffset + i, v.array(i));
+        }
+
+        float scale = 1.0f / (float) Math.sqrt(headDim);
+
+        // GQA: for each query head, compute scaled dot-product attention
+        for (int h = 0; h < numHeads; h++) {
+            int kvHead = h / kvMul;
+            int qOffset = h * headDim;
+
+            // Compute attention scores against all cached keys (0..pos inclusive)
+            for (int t = 0; t <= pos; t++) {
+                float score = 0.0f;
+                int kOffset = t * kvDim + kvHead * headDim;
+                for (int d = 0; d < headDim; d++) {
+                    score += q.array(qOffset + d) * kCache.array(kOffset + d);
+                }
+                att[t] = score * scale;
+            }
+
+            // Softmax over scores
+            softmaxInPlace(att, pos + 1);
+
+            // Weighted sum of cached values → write to attnOut
+            int attnOffset = h * headDim;
+            for (int d = 0; d < headDim; d++) {
+                float sum = 0.0f;
+                for (int t = 0; t <= pos; t++) {
+                    sum += att[t] * vCache.array(t * kvDim + kvHead * headDim + d);
+                }
+                attnOut.array(attnOffset + d, sum);
+            }
+        }
 
         // 5. Output Projection
         gemv.apply(wo, attnOut, x, hiddenSize, hiddenSize);
@@ -152,8 +190,10 @@ public class TransformerBlock {
         elementWiseMul(ffn1Out, ffn3Out, intermediateSize);
         gemv.apply(w2, ffn1Out, ffnOut, hiddenSize, intermediateSize);
 
-        // 9. Residual Add
-        add(x, ffnOut, hiddenSize);
+        // 9. Residual Add (use saved residual, not norm'd x)
+        for (int i = 0; i < hiddenSize; i++) {
+            x.array(i, residual.array(i) + ffnOut.array(i));
+        }
     }
 
     private void copy(F32Array src, F32Array dst, int size) {
@@ -165,6 +205,22 @@ public class TransformerBlock {
     private void add(F32Array a, F32Array b, int size) {
         for (int i = 0; i < size; i++) {
             a.array(i, a.array(i) + b.array(i));
+        }
+    }
+
+    private void softmaxInPlace(float[] values, int size) {
+        float maxVal = Float.NEGATIVE_INFINITY;
+        for (int i = 0; i < size; i++) {
+            if (values[i] > maxVal) maxVal = values[i];
+        }
+        float sum = 0.0f;
+        for (int i = 0; i < size; i++) {
+            values[i] = (float) Math.exp(values[i] - maxVal);
+            sum += values[i];
+        }
+        float invSum = 1.0f / sum;
+        for (int i = 0; i < size; i++) {
+            values[i] *= invSum;
         }
     }
 

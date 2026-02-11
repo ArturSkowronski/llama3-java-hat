@@ -32,6 +32,7 @@ public class LlamaModel {
     public static final int NUM_KV_HEADS = 8;
     public static final int HEAD_DIM = HIDDEN_SIZE / NUM_HEADS; // 64
     public static final int VOCAB_SIZE = 128256;
+    public static final int MAX_SEQ_LEN = 2048;
 
     private final GGUFReader.GGUFMetadata metadata;
     private final Path modelPath;
