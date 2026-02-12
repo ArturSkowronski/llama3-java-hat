@@ -31,9 +31,21 @@ public class RoPE {
      * @param theta base for frequency calculation (typically 10000.0 or 500000.0 for Llama 3)
      */
     public void apply(F32Array vec, int pos, int numHeads, int headDim, float theta) {
-        accelerator.compute((Accelerator.@Reflect Compute) cc ->
-                dispatchRoPE(cc, vec, pos, numHeads, headDim, theta)
-        );
+        // Plain Java — HAT dispatch has buffer sync issues with subsequent
+        // plain Java reads on the same buffer (e.g., Attention reading q/k)
+        for (int h = 0; h < numHeads; h++) {
+            int headOffset = h * headDim;
+            for (int i = 0; i < headDim; i += 2) {
+                float freq = (float) (1.0 / Math.pow(theta, (double) i / headDim));
+                float val = pos * freq;
+                float cos = (float) Math.cos(val);
+                float sin = (float) Math.sin(val);
+                float v0 = vec.array(headOffset + i);
+                float v1 = vec.array(headOffset + i + 1);
+                vec.array(headOffset + i, v0 * cos - v1 * sin);
+                vec.array(headOffset + i + 1, v0 * sin + v1 * cos);
+            }
+        }
     }
 
     @Reflect

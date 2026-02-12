@@ -72,18 +72,18 @@ public class TransformerBlock {
         this.softmax = new Softmax(acc);
         this.silu = new SiLU(acc);
 
-        // Map Weights
-        String prefix = "layers." + layerIdx + ".";
-        this.attnNormWeight = model.mapTensor(prefix + "attention_norm.weight");
-        this.wq = model.mapTensor(prefix + "attention.wq.weight");
-        this.wk = model.mapTensor(prefix + "attention.wk.weight");
-        this.wv = model.mapTensor(prefix + "attention.wv.weight");
-        this.wo = model.mapTensor(prefix + "attention.wo.weight");
+        // Map Weights (GGUF standard naming: blk.{N}.*)
+        String prefix = "blk." + layerIdx + ".";
+        this.attnNormWeight = model.mapTensor(prefix + "attn_norm.weight");
+        this.wq = model.mapTensor(prefix + "attn_q.weight");
+        this.wk = model.mapTensor(prefix + "attn_k.weight");
+        this.wv = model.mapTensor(prefix + "attn_v.weight");
+        this.wo = model.mapTensor(prefix + "attn_output.weight");
 
         this.ffnNormWeight = model.mapTensor(prefix + "ffn_norm.weight");
-        this.w1 = model.mapTensor(prefix + "feed_forward.w1.weight");
-        this.w2 = model.mapTensor(prefix + "feed_forward.w2.weight");
-        this.w3 = model.mapTensor(prefix + "feed_forward.w3.weight");
+        this.w1 = model.mapTensor(prefix + "ffn_gate.weight");
+        this.w2 = model.mapTensor(prefix + "ffn_down.weight");
+        this.w3 = model.mapTensor(prefix + "ffn_up.weight");
 
         // Pre-allocate Intermediate Buffers
         this.normOut = F32Array.create(acc, LlamaModel.HIDDEN_SIZE);

@@ -30,7 +30,7 @@ public class RMSNorm {
      * @param size the size of the hidden dimension
      */
     public void apply(F32Array input, F32Array weight, int size) {
-        // Step 1: Compute sum of squares on CPU (for now, consistent with Softmax approach)
+        // Compute sum of squares
         float ss = 0.0f;
         for (int i = 0; i < size; i++) {
             float val = input.array(i);
@@ -39,10 +39,11 @@ public class RMSNorm {
 
         float invRms = 1.0f / (float) Math.sqrt(ss / size + EPSILON);
 
-        // Step 2: Normalize and scale on GPU
-        accelerator.compute((Accelerator.@Reflect Compute) cc ->
-                dispatchNormalize(cc, input, weight, invRms, size)
-        );
+        // Normalize and scale (plain Java — HAT dispatch has buffer sync issues
+        // with subsequent @Reflect kernel reads on the same buffer)
+        for (int i = 0; i < size; i++) {
+            input.array(i, input.array(i) * invRms * weight.array(i));
+        }
     }
 
     @Reflect
