@@ -144,7 +144,7 @@ Created a factory pattern to enable switching individual kernels between plain J
 - 3 factory classes (`IKernelFactory`, `PlainJavaKernelFactory`, `HybridKernelFactory`)
 - 1 HAT kernel implementation (`SiLUHAT`)
 - 1 integration test (`ChatIntegrationTestWithSiLUHAT`)
-- 2 documentation files (`HAT_KERNEL_RESTORATION_STATUS.md`, this file)
+- 2 documentation files (`HAT_KERNEL_RESTORATION_STATUS.md`, `SILU_HAT_SUCCESS.md`)
 
 **Modified (9 files)**:
 - 6 kernel classes (added `implements` clause)
