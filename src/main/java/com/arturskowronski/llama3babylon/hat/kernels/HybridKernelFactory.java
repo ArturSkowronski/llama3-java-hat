@@ -78,8 +78,7 @@ public class HybridKernelFactory implements IKernelFactory {
     @Override
     public ISoftmax createSoftmax(Accelerator acc) {
         if (enableHAT.contains(KernelType.SOFTMAX)) {
-            // TODO: Create SoftmaxHAT when implemented
-            throw new UnsupportedOperationException("Softmax HAT not yet implemented");
+            return new SoftmaxHAT(acc);
         }
         return new Softmax(acc);
     }
