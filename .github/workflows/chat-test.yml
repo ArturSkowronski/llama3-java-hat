@@ -91,7 +91,7 @@ jobs:
   chat-test:
     needs: build-babylon
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - name: Checkout Project
         uses: actions/checkout@v4
@@ -131,6 +131,9 @@ jobs:
           ./gradlew build
 
       - name: Run Chat Integration Test
+        timeout-minutes: 20
+        env:
+          CI: "true"
         run: |
           export JAVA_HOME=$JAVA_BABYLON_ROOT/build/linux-x86_64-server-release/images/jdk
           export PATH=$JAVA_HOME/bin:$PATH

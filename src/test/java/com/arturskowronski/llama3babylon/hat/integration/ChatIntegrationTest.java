@@ -47,10 +47,13 @@ public class ChatIntegrationTest {
         Path modelPath = Paths.get(System.getenv("LLAMA_FP16_PATH"));
         LlamaInference inference = new LlamaInference(modelPath);
 
+        // Use fewer tokens on CI to stay within GitHub runner time limits.
+        // 32 tokens is enough for a short joke; local runs can use more.
+        int maxTokens = System.getenv("CI") != null ? 32 : 128;
         String response = inference.chat(
                 "You are a helpful assistant.",
                 "Tell a joke about programming",
-                128
+                maxTokens
         );
 
         System.out.println("=== Model Response ===");
