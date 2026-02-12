@@ -27,9 +27,12 @@ public class SiLU {
      * @param size the number of elements to process
      */
     public void apply(F32Array input, int size) {
-        accelerator.compute((Accelerator.@Reflect Compute) cc ->
-                dispatchSiLU(cc, input, size)
-        );
+        // Plain Java — HAT dispatch has buffer sync issues with subsequent
+        // plain Java reads on the same buffer (e.g., elementWiseMul)
+        for (int i = 0; i < size; i++) {
+            float x = input.array(i);
+            input.array(i, x / (1.0f + (float) Math.exp(-x)));
+        }
     }
 
     @Reflect

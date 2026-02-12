@@ -203,7 +203,7 @@ public class GGUFReader {
         System.out.println("\nTensors:");
         for (int i = 0; i < Math.min(metadata.tensors().size(), 10); i++) {
             GGUFTensorInfo t = metadata.tensors().get(i);
-            System.out.printf("%s: type=%d, shape=%s, offset=%d\n", 
+            System.out.printf("%s: type=%d, shape=%s, offset=%d\n",
                 t.name(), t.type(), java.util.Arrays.toString(t.shape()), t.offset());
         }
         if (metadata.tensors().size() > 10) {
