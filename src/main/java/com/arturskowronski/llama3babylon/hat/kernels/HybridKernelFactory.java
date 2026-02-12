@@ -44,8 +44,7 @@ public class HybridKernelFactory implements IKernelFactory {
     @Override
     public IGEMV createGEMV(Accelerator acc) {
         if (enableHAT.contains(KernelType.GEMV)) {
-            // TODO: Create GEMVHAT when implemented
-            throw new UnsupportedOperationException("GEMV HAT not yet implemented");
+            return new GEMVHAT(acc);
         }
         return new GEMV(acc);
     }
