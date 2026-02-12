@@ -7,7 +7,7 @@ import com.arturskowronski.llama3babylon.hat.kernels.RMSNorm;
 
 import java.io.IOException;
 import java.nio.file.Path;
-import java.util.Arrays;
+import java.util.*;
 
 /**
  * End-to-end inference pipeline for Llama 3.2 1B Instruct.
@@ -16,9 +16,9 @@ import java.util.Arrays;
  */
 public class LlamaInference {
 
-    private static final int EOS_TOKEN = 128001;
-
     private final LlamaModel model;
+    private final Tokenizer tokenizer;
+    private final ChatFormat chatFormat;
     private final TransformerBlock[] layers;
     private final F32Array[] kCaches;
     private final F32Array[] vCaches;
@@ -41,9 +41,12 @@ public class LlamaInference {
         Accelerator acc = model.getAccelerator();
 
         // Load global weights
+        // Llama 3.2 1B uses tied embeddings: output classifier shares token_embd.weight
         this.tokenEmbedding = model.mapTensor("token_embd.weight");
         this.outputNormWeight = model.mapTensor("output_norm.weight");
-        this.outputWeight = model.mapTensor("output.weight");
+        this.outputWeight = model.hasTensor("output.weight")
+                ? model.mapTensor("output.weight")
+                : tokenEmbedding;
 
         // Initialize kernels
         this.rmsNorm = new RMSNorm(acc);
@@ -71,6 +74,10 @@ public class LlamaInference {
         for (int l = 0; l < LlamaModel.NUM_LAYERS; l++) {
             layers[l] = new TransformerBlock(model, l);
         }
+
+        // Initialize tokenizer and chat format from GGUF metadata
+        this.tokenizer = Tokenizer.fromGGUFMetadata(model.getMetadata().metadata());
+        this.chatFormat = new ChatFormat(tokenizer);
     }
 
     /**
@@ -117,6 +124,13 @@ public class LlamaInference {
      * @return generated token IDs (excluding prompt)
      */
     public int[] generate(int[] promptTokens, int maxNewTokens) {
+        return generate(promptTokens, maxNewTokens, Set.of(128001)); // EOS_TOKEN
+    }
+
+    /**
+     * Generate tokens with custom stop token set.
+     */
+    public int[] generate(int[] promptTokens, int maxNewTokens, Set<Integer> stopTokens) {
         int[] result = new int[maxNewTokens];
         int generated = 0;
 
@@ -132,7 +146,7 @@ public class LlamaInference {
         generated = 1;
 
         // Auto-regressive generation
-        while (generated < maxNewTokens && nextToken != EOS_TOKEN) {
+        while (generated < maxNewTokens && !stopTokens.contains(nextToken)) {
             lastLogits = forward(nextToken, promptTokens.length + generated - 1);
             nextToken = argmax(lastLogits);
             result[generated] = nextToken;
@@ -141,6 +155,39 @@ public class LlamaInference {
 
         return Arrays.copyOf(result, generated);
     }
+
+    /**
+     * Generate a response to a user prompt using the Instruct chat format.
+     *
+     * @param systemPrompt system instructions
+     * @param userPrompt the user's message
+     * @param maxNewTokens maximum tokens to generate
+     * @return decoded text response
+     */
+    public String chat(String systemPrompt, String userPrompt, int maxNewTokens) {
+        List<ChatFormat.Message> dialog = new ArrayList<>();
+        if (systemPrompt != null && !systemPrompt.isEmpty()) {
+            dialog.add(new ChatFormat.Message(ChatFormat.Role.SYSTEM, systemPrompt));
+        }
+        dialog.add(new ChatFormat.Message(ChatFormat.Role.USER, userPrompt));
+
+        List<Integer> promptTokens = chatFormat.encodeDialogPrompt(dialog);
+        int[] promptArray = promptTokens.stream().mapToInt(Integer::intValue).toArray();
+
+        Set<Integer> stopTokens = chatFormat.getStopTokens();
+        int[] generatedIds = generate(promptArray, maxNewTokens, stopTokens);
+
+        // Decode generated tokens, excluding stop tokens
+        List<Integer> tokenList = new ArrayList<>();
+        for (int id : generatedIds) {
+            if (stopTokens.contains(id)) break;
+            tokenList.add(id);
+        }
+        return tokenizer.decode(tokenList);
+    }
+
+    public Tokenizer getTokenizer() { return tokenizer; }
+    public ChatFormat getChatFormat() { return chatFormat; }
 
     /**
      * Returns the index of the maximum value in the array.

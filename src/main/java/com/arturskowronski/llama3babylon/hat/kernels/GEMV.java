@@ -31,9 +31,16 @@ public class GEMV {
      * @param cols number of columns in matrix
      */
     public void apply(F32Array matrix, F32Array vector, F32Array result, int rows, int cols) {
-        accelerator.compute((Accelerator.@Reflect Compute) cc ->
-                dispatchGEMV(cc, matrix, vector, result, rows, cols)
-        );
+        // Plain Java — HAT sequential backend dispatch produces incorrect results
+        // when reading from weight matrices mapped from GGUF
+        for (int row = 0; row < rows; row++) {
+            float sum = 0.0f;
+            int rowOffset = row * cols;
+            for (int c = 0; c < cols; c++) {
+                sum += matrix.array(rowOffset + c) * vector.array(c);
+            }
+            result.array(row, sum);
+        }
     }
 
     @Reflect

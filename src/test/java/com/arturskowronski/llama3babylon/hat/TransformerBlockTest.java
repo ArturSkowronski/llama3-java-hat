@@ -29,15 +29,15 @@ public class TransformerBlockTest {
         
         // Define all necessary tensors for a single layer
         String[] tensorNames = {
-            "layers.0.attention_norm.weight",
-            "layers.0.attention.wq.weight",
-            "layers.0.attention.wk.weight",
-            "layers.0.attention.wv.weight",
-            "layers.0.attention.wo.weight",
-            "layers.0.ffn_norm.weight",
-            "layers.0.feed_forward.w1.weight",
-            "layers.0.feed_forward.w2.weight",
-            "layers.0.feed_forward.w3.weight"
+            "blk.0.attn_norm.weight",
+            "blk.0.attn_q.weight",
+            "blk.0.attn_k.weight",
+            "blk.0.attn_v.weight",
+            "blk.0.attn_output.weight",
+            "blk.0.ffn_norm.weight",
+            "blk.0.ffn_gate.weight",
+            "blk.0.ffn_down.weight",
+            "blk.0.ffn_up.weight"
         };
         
         float[][] tensorData = new float[tensorNames.length][];
@@ -65,15 +65,15 @@ public class TransformerBlockTest {
         Path ggufPath = tempDir.resolve("model.gguf");
 
         String[] tensorNames = {
-            "layers.0.attention_norm.weight",
-            "layers.0.attention.wq.weight",
-            "layers.0.attention.wk.weight",
-            "layers.0.attention.wv.weight",
-            "layers.0.attention.wo.weight",
-            "layers.0.ffn_norm.weight",
-            "layers.0.feed_forward.w1.weight",
-            "layers.0.feed_forward.w2.weight",
-            "layers.0.feed_forward.w3.weight"
+            "blk.0.attn_norm.weight",
+            "blk.0.attn_q.weight",
+            "blk.0.attn_k.weight",
+            "blk.0.attn_v.weight",
+            "blk.0.attn_output.weight",
+            "blk.0.ffn_norm.weight",
+            "blk.0.ffn_gate.weight",
+            "blk.0.ffn_down.weight",
+            "blk.0.ffn_up.weight"
         };
 
         // Fill weights with small random values so output is non-trivial
