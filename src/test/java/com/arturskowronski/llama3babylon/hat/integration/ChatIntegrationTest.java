@@ -29,6 +29,18 @@ public class ChatIntegrationTest {
     /** Matches strings with excessive non-ASCII/control chars — sign of broken decoding. */
     private static final Pattern HIGH_NON_ASCII_RATIO = Pattern.compile("[^\\x20-\\x7E\\n\\r\\t]");
 
+    /** Max fraction of non-printable-ASCII characters before flagging as broken decoding. */
+    private static final double MAX_NON_ASCII_RATIO = 0.3;
+
+    /** Minimum number of alphabetic characters required in a valid response. */
+    private static final long MIN_ALPHA_COUNT = 3;
+
+    /** Minimum unique-character ratio — natural text has much higher diversity than gibberish. */
+    private static final double MIN_UNIQUE_CHAR_RATIO = 0.05;
+
+    /** Max length for error message excerpts. */
+    private static final int TRUNCATE_LENGTH = 200;
+
     @Test
     @EnabledIfEnvironmentVariable(named = "LLAMA_FP16_PATH", matches = ".*")
     public void testTellAJokeAboutProgramming() throws IOException {
@@ -64,27 +76,27 @@ public class ChatIntegrationTest {
         assertFalse(REPEATED_CHAR.matcher(trimmed).find(),
                 "Response looks like gibberish (repeated character run): " + truncate(trimmed));
 
-        // 2. Non-ASCII ratio — allow some (curly quotes, etc.) but flag if > 30%
+        // 2. Non-ASCII ratio — allow some (curly quotes, etc.) but flag above threshold
         long nonAscii = HIGH_NON_ASCII_RATIO.matcher(trimmed).results().count();
         double nonAsciiRatio = (double) nonAscii / trimmed.length();
-        assertTrue(nonAsciiRatio < 0.3,
+        assertTrue(nonAsciiRatio < MAX_NON_ASCII_RATIO,
                 String.format("Response has %.0f%% non-printable-ASCII characters (likely broken decoding): %s",
                         nonAsciiRatio * 100, truncate(trimmed)));
 
         // 3. Must contain at least some alphabetic characters
         long alphaCount = trimmed.chars().filter(Character::isLetter).count();
-        assertTrue(alphaCount >= 3,
+        assertTrue(alphaCount >= MIN_ALPHA_COUNT,
                 "Response contains almost no alphabetic characters: " + truncate(trimmed));
 
         // 4. Unique character ratio — natural text uses many distinct chars
         long uniqueChars = trimmed.chars().distinct().count();
         double uniqueRatio = (double) uniqueChars / trimmed.length();
-        assertTrue(uniqueRatio > 0.05,
+        assertTrue(uniqueRatio > MIN_UNIQUE_CHAR_RATIO,
                 String.format("Response has very low character diversity (%.1f%% unique): %s",
                         uniqueRatio * 100, truncate(trimmed)));
     }
 
     private static String truncate(String s) {
-        return s.length() <= 200 ? s : s.substring(0, 200) + "...";
+        return s.length() <= TRUNCATE_LENGTH ? s : s.substring(0, TRUNCATE_LENGTH) + "...";
     }
 }

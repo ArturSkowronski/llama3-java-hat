@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test;
 import java.lang.invoke.MethodHandles;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Compare HAT @Reflect SiLU dispatch vs plain Java at various scales.
@@ -153,6 +154,8 @@ public class SiLUHatVsJavaTest {
         if (bugPresent) {
             System.out.println("CONFIRMED: HAT dispatch with new F32Array ignores kernel (returns raw input)");
         }
+        assertTrue(bugPresent, "The known HAT data visibility bug was not reproduced. " +
+                "If this fails, the bug may be fixed — review workarounds in kernels and TransformerBlock.");
     }
 
     /**
