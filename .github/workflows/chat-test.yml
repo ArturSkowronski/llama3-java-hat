@@ -1,0 +1,138 @@
+name: Chat Integration Test
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build-babylon:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Babylon
+        uses: actions/checkout@v4
+        with:
+          repository: openjdk/babylon
+          path: babylon
+          ref: code-reflection
+
+      - name: Cache Babylon JDK and HAT
+        id: cache-babylon
+        uses: actions/cache@v4
+        with:
+          path: |
+            babylon/build
+            babylon/hat/build
+          key: ${{ runner.os }}-babylon-hat-${{ hashFiles('.github/workflows/chat-test.yml') }}-${{ hashFiles('babylon/.git/HEAD') }}
+          restore-keys: |
+            ${{ runner.os }}-babylon-hat-${{ hashFiles('.github/workflows/chat-test.yml') }}-
+            ${{ runner.os }}-babylon-hat-
+
+      - name: Install Build Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential libx11-dev libxext-dev libxrender-dev libxrandr-dev libxtst-dev libxt-dev libcups2-dev libasound2-dev libfontconfig1-dev autoconf
+
+      - name: Setup Boot JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: '25'
+          distribution: 'temurin'
+
+      - name: Configure and Build Babylon
+        id: build-jdk
+        continue-on-error: true
+        run: |
+          cd babylon
+          if [ -f build/linux-x86_64-server-release/spec.gmk ]; then
+            echo "Build already configured, checking if update is needed..."
+            if ! make JOBS=$(nproc) CONF=linux-x86_64-server-release check-conf > /dev/null 2>&1; then
+              echo "Configuration is out of date, reconfiguring..."
+              make reconfigure JOBS=$(nproc) CONF=linux-x86_64-server-release
+            else
+              echo "Configuration is up to date."
+            fi
+          else
+            echo "Configuring Babylon JDK build..."
+            bash configure --with-conf-name=linux-x86_64-server-release --with-debug-level=release --with-native-debug-symbols=none --disable-warnings-as-errors
+          fi
+
+          echo "Building Babylon JDK..."
+          make images JOBS=$(nproc) CONF=linux-x86_64-server-release
+
+      - name: Retry Build if failed
+        if: steps.build-jdk.outcome == 'failure'
+        run: |
+          cd babylon
+          echo "Build failed, attempting reconfigure and retry..."
+          make reconfigure JOBS=$(nproc) CONF=linux-x86_64-server-release
+          make images JOBS=$(nproc) CONF=linux-x86_64-server-release
+
+      - name: Build HAT
+        run: |
+          cd babylon/hat
+          export JAVA_HOME=$(pwd)/../build/linux-x86_64-server-release/images/jdk
+          export PATH=$JAVA_HOME/bin:$PATH
+          bash hat/bootstrap.bash
+          java -cp hat/job.jar --enable-preview --source 26 hat.java bld
+
+      - name: Upload Babylon Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: babylon-jdk-chat
+          path: |
+            babylon/build/linux-x86_64-server-release/images/jdk
+            babylon/hat/build
+          include-hidden-files: true
+          retention-days: 7
+
+  chat-test:
+    needs: build-babylon
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout Project
+        uses: actions/checkout@v4
+
+      - name: Download Babylon Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: babylon-jdk-chat
+          path: babylon-jdk
+
+      - name: Setup Environment
+        run: |
+          JDK_PATH=babylon-jdk/build/linux-x86_64-server-release/images/jdk
+          chmod -R +x $JDK_PATH/bin/
+          find $JDK_PATH/lib -type f -name "jspawnhelper" -exec chmod +x {} \;
+          find $JDK_PATH/lib -type f -name "*.so" -exec chmod +x {} \;
+          echo "JAVA_BABYLON_ROOT=$(pwd)/babylon-jdk" >> $GITHUB_ENV
+          chmod +x gradlew
+
+      - name: Cache Llama 3.2 1B Model
+        id: cache-llama
+        uses: actions/cache@v4
+        with:
+          path: Llama-3.2-1B-Instruct-f16.gguf
+          key: llama-3.2-1b-instruct-f16-gguf
+
+      - name: Download Llama 3.2 1B Instruct FP16
+        if: steps.cache-llama.outputs.cache-hit != 'true'
+        run: |
+          chmod +x scripts/download_llama_fp16.sh
+          ./scripts/download_llama_fp16.sh
+
+      - name: Build Project
+        run: |
+          export JAVA_HOME=$JAVA_BABYLON_ROOT/build/linux-x86_64-server-release/images/jdk
+          export PATH=$JAVA_HOME/bin:$PATH
+          ./gradlew build
+
+      - name: Run Chat Integration Test
+        run: |
+          export JAVA_HOME=$JAVA_BABYLON_ROOT/build/linux-x86_64-server-release/images/jdk
+          export PATH=$JAVA_HOME/bin:$PATH
+          export LLAMA_FP16_PATH=$(pwd)/Llama-3.2-1B-Instruct-f16.gguf
+          ./gradlew integrationTest
