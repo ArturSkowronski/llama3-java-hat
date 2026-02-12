@@ -248,7 +248,7 @@ Earlier conclusion was too pessimistic. HAT works for some operations, not other
 - **Test**: `src/test/java/.../ChatIntegrationTestWithSiLUHAT.java`
 - **Kernel**: `src/main/java/.../kernels/SiLUHAT.java`
 - **Factory**: `src/main/java/.../kernels/HybridKernelFactory.java`
-- **Memory**: `~/.claude/projects/.../memory/MEMORY.md` (updated with success)
+- **Memory**: `path/to/project/memory/MEMORY.md` (updated with success)
 
 ---
 
