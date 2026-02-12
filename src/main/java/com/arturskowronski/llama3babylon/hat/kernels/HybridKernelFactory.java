@@ -62,8 +62,7 @@ public class HybridKernelFactory implements IKernelFactory {
     @Override
     public IRoPE createRoPE(Accelerator acc) {
         if (enableHAT.contains(KernelType.ROPE)) {
-            // TODO: Create RoPEHAT when implemented
-            throw new UnsupportedOperationException("RoPE HAT not yet implemented");
+            return new RoPEHAT(acc);
         }
         return new RoPE(acc);
     }
