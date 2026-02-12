@@ -9,11 +9,11 @@ import jdk.incubator.code.Reflect;
 
 /**
  * RoPE (Rotary Positional Embedding) kernel for Llama 3.2 1B Instruct.
- * 
+ *
  * Specifically designed for HIDDEN_SIZE=2048, NUM_HEADS=32, HEAD_DIM=64.
  * RoPE is applied to Query and Key vectors.
  */
-public class RoPE {
+public class RoPE implements IRoPE {
 
     private final Accelerator accelerator;
 

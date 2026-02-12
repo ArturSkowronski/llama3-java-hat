@@ -1,6 +1,7 @@
 package com.arturskowronski.llama3babylon.hat;
 
 import com.arturskowronski.llama3babylon.hat.kernels.GEMV;
+import com.arturskowronski.llama3babylon.hat.kernels.PlainJavaKernelFactory;
 import com.arturskowronski.llama3babylon.hat.utils.MinimalGGUFGenerator;
 import hat.buffer.F32Array;
 import org.junit.jupiter.api.Test;
@@ -55,8 +56,8 @@ public class TransformerBlockTest {
         MinimalGGUFGenerator.generateLlamaWithTensors(ggufPath, tensorNames, tensorData);
 
         LlamaModel model = new LlamaModel(ggufPath, false);
-        TransformerBlock block = new TransformerBlock(model, 0);
-        
+        TransformerBlock block = new TransformerBlock(model, 0, new PlainJavaKernelFactory());
+
         assertNotNull(block);
     }
 
@@ -103,7 +104,7 @@ public class TransformerBlockTest {
         new GEMV(acc).apply(primingMatrix, primingInput, primingOutput,
                 LlamaModel.INTERMEDIATE_SIZE, LlamaModel.HIDDEN_SIZE);
 
-        TransformerBlock block = new TransformerBlock(model, 0);
+        TransformerBlock block = new TransformerBlock(model, 0, new PlainJavaKernelFactory());
 
         F32Array x = F32Array.create(acc, LlamaModel.HIDDEN_SIZE);
         for (int i = 0; i < LlamaModel.HIDDEN_SIZE; i++) {

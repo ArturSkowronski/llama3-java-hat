@@ -24,14 +24,14 @@ public class TransformerBlock {
 
     private final LlamaModel model;
     private final int layerIdx;
-    
+
     // Kernels
-    private final RMSNorm rmsNorm;
-    private final GEMV gemv;
-    private final RoPE rope;
-    private final Attention attention;
-    private final Softmax softmax;
-    private final SiLU silu;
+    private final IRMSNorm rmsNorm;
+    private final IGEMV gemv;
+    private final IRoPE rope;
+    private final IAttention attention;
+    private final ISoftmax softmax;
+    private final ISiLU silu;
 
     // Weights (mapped from model)
     private final F32Array attnNormWeight;
@@ -59,18 +59,18 @@ public class TransformerBlock {
     // Plain Java array for per-head attention scores (avoids HAT buffer caching bug)
     private final float[] att;
 
-    public TransformerBlock(LlamaModel model, int layerIdx) throws IOException {
+    public TransformerBlock(LlamaModel model, int layerIdx, IKernelFactory factory) throws IOException {
         this.model = model;
         this.layerIdx = layerIdx;
         Accelerator acc = model.getAccelerator();
 
-        // Initialize Kernels
-        this.rmsNorm = new RMSNorm(acc);
-        this.gemv = new GEMV(acc);
-        this.rope = new RoPE(acc);
-        this.attention = new Attention(acc);
-        this.softmax = new Softmax(acc);
-        this.silu = new SiLU(acc);
+        // Initialize Kernels using factory
+        this.rmsNorm = factory.createRMSNorm(acc);
+        this.gemv = factory.createGEMV(acc);
+        this.rope = factory.createRoPE(acc);
+        this.attention = factory.createAttention(acc);
+        this.softmax = factory.createSoftmax(acc);
+        this.silu = factory.createSiLU(acc);
 
         // Map Weights (GGUF standard naming: blk.{N}.*)
         String prefix = "blk." + layerIdx + ".";
