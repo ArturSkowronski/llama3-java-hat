@@ -53,8 +53,7 @@ public class HybridKernelFactory implements IKernelFactory {
     @Override
     public IRMSNorm createRMSNorm(Accelerator acc) {
         if (enableHAT.contains(KernelType.RMSNORM)) {
-            // TODO: Create RMSNormHAT when implemented
-            throw new UnsupportedOperationException("RMSNorm HAT not yet implemented");
+            return new RMSNormHAT(acc);
         }
         return new RMSNorm(acc);
     }
