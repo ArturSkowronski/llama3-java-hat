@@ -2,8 +2,7 @@ package com.arturskowronski.llama3babylon.hat;
 
 import hat.Accelerator;
 import hat.buffer.F32Array;
-import com.arturskowronski.llama3babylon.hat.kernels.GEMV;
-import com.arturskowronski.llama3babylon.hat.kernels.RMSNorm;
+import com.arturskowronski.llama3babylon.hat.kernels.*;
 
 import java.io.IOException;
 import java.nio.file.Path;
@@ -29,14 +28,27 @@ public class LlamaInference {
     private final F32Array outputWeight;
 
     // Kernels
-    private final RMSNorm rmsNorm;
-    private final GEMV gemv;
+    private final IRMSNorm rmsNorm;
+    private final IGEMV gemv;
 
     // Working buffers
     private final F32Array x;
     private final F32Array logits;
 
+    /**
+     * Creates a LlamaInference instance with a plain Java kernel factory (backward compatible).
+     */
     public LlamaInference(Path ggufPath) throws IOException {
+        this(ggufPath, new PlainJavaKernelFactory());
+    }
+
+    /**
+     * Creates a LlamaInference instance with a custom kernel factory.
+     *
+     * @param ggufPath path to GGUF model file
+     * @param factory kernel factory for creating kernel implementations
+     */
+    public LlamaInference(Path ggufPath, IKernelFactory factory) throws IOException {
         this.model = new LlamaModel(ggufPath);
         Accelerator acc = model.getAccelerator();
 
@@ -48,9 +60,9 @@ public class LlamaInference {
                 ? model.mapTensor("output.weight")
                 : tokenEmbedding;
 
-        // Initialize kernels
-        this.rmsNorm = new RMSNorm(acc);
-        this.gemv = new GEMV(acc);
+        // Initialize kernels using factory
+        this.rmsNorm = factory.createRMSNorm(acc);
+        this.gemv = factory.createGEMV(acc);
 
         // Allocate working buffers
         this.x = F32Array.create(acc, LlamaModel.HIDDEN_SIZE);
@@ -72,7 +84,7 @@ public class LlamaInference {
         // Create transformer blocks (after GEMV priming)
         this.layers = new TransformerBlock[LlamaModel.NUM_LAYERS];
         for (int l = 0; l < LlamaModel.NUM_LAYERS; l++) {
-            layers[l] = new TransformerBlock(model, l);
+            layers[l] = new TransformerBlock(model, l, factory);
         }
 
         // Initialize tokenizer and chat format from GGUF metadata

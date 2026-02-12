@@ -9,11 +9,11 @@ import jdk.incubator.code.Reflect;
 
 /**
  * GEMV (Matrix-Vector Multiplication) kernel for Llama 3.2 1B Instruct.
- * 
+ *
  * Computes: y = Ax
  * where A is a matrix [rows, cols] and x is a vector [cols].
  */
-public class GEMV {
+public class GEMV implements IGEMV {
 
     private final Accelerator accelerator;
 

@@ -11,16 +11,16 @@ import java.lang.invoke.MethodHandles;
 
 /**
  * Attention kernel for Llama 3.2 1B Instruct (FP16).
- * 
+ *
  * Specifically implements Scaled Dot-Product Attention for one query head:
  * Attention(Q, K, V) = softmax( (Q * K^T) / sqrt(d_k) ) * V
- * 
+ *
  * Constraints:
  * - Designed for Llama 3.2 1B (HIDDEN_SIZE=2048, NUM_HEADS=32, HEAD_DIM=64)
  * - Single-head query, multiple KV heads (GQA support)
  * - FP32 buffers (dequantized from FP16)
  */
-public class Attention {
+public class Attention implements IAttention {
 
     private final Accelerator accelerator;
 

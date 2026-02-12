@@ -9,11 +9,11 @@ import jdk.incubator.code.Reflect;
 
 /**
  * RMSNorm (Root Mean Square Layer Normalization) kernel for Llama 3.2 1B.
- * 
+ *
  * Formula: y = (x / RMS(x)) * weight
  * where RMS(x) = sqrt(1/n * sum(x_i^2) + epsilon)
  */
-public class RMSNorm {
+public class RMSNorm implements IRMSNorm {
 
     private final Accelerator accelerator;
     private static final float EPSILON = 1e-5f;

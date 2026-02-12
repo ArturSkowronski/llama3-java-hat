@@ -11,15 +11,15 @@ import java.lang.invoke.MethodHandles;
 
 /**
  * Softmax kernel for Llama 3.2 1B Instruct (FP16).
- * 
+ *
  * Computes softmax(x) = exp(x - max(x)) / sum(exp(x - max(x)))
- * 
+ *
  * This is a numerically stable implementation that:
  * 1. Finds the maximum value in the input
  * 2. Subtracts max before exponentiating (prevents overflow)
  * 3. Normalizes by the sum of exponentials
  */
-public class Softmax {
+public class Softmax implements ISoftmax {
 
     private final Accelerator accelerator;
 
