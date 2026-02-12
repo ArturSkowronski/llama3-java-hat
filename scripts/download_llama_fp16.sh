@@ -1,4 +1,5 @@
 #!/bin/bash
+set -euo pipefail
 
 # Download Llama 3.2 1B Instruct FP16 GGUF for integration tests
 # Source: bartowski/Llama-3.2-1B-Instruct-GGUF on HuggingFace
