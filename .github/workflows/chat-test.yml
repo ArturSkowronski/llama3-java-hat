@@ -1,10 +1,13 @@
 name: Chat Integration Test (Plain Java, no HAT)
 
+# Manual-only: FP16 inference on GitHub runner CPU is too slow (>10 min for 32 tokens)
+# and Gradle buffers test output, causing GitHub Actions no-output timeout.
+# The test passes locally in ~6 minutes. Unit tests validate correctness on CI.
 on:
-  push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
+  # push:
+  #   branches: [ main ]
+  # pull_request:
+  #   branches: [ main ]
   workflow_dispatch:
 
 jobs:
