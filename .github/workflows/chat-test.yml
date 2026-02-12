@@ -1,13 +1,10 @@
 name: Chat Integration Test (Plain Java, no HAT)
 
-# NOTE: This workflow is disabled for automatic runs because FP16 inference
-# on GitHub runner CPU is too slow (>20 minutes for 32 tokens). The test
-# passes locally in ~6 minutes. Use workflow_dispatch to run manually.
 on:
-  # push:
-  #   branches: [ main ]
-  # pull_request:
-  #   branches: [ main ]
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
   workflow_dispatch:
 
 jobs:
@@ -94,7 +91,7 @@ jobs:
   chat-test:
     needs: build-babylon
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
     steps:
       - name: Checkout Project
         uses: actions/checkout@v4
@@ -134,7 +131,7 @@ jobs:
           ./gradlew build
 
       - name: Run Chat Integration Test
-        timeout-minutes: 20
+        timeout-minutes: 30
         env:
           CI: "true"
         run: |
