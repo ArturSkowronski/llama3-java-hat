@@ -144,7 +144,7 @@ String response = inference.chat(system, user, maxTokens);
 ### Test Command
 
 ```bash
-export LLAMA_FP16_PATH=/Users/askowronski/.llama/models/Llama-3.2-1B-Instruct-f16.gguf
+export LLAMA_FP16_PATH=/path/to/Llama-3.2-1B-Instruct-f16.gguf
 ./gradlew integrationTest --tests "*ChatIntegrationTestWithSiLUHAT*" --rerun-tasks
 ```
 
