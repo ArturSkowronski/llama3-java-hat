@@ -1,4 +1,4 @@
-name: Chat Integration Test
+name: Chat Integration Test (Plain Java, no HAT)
 
 on:
   push:
