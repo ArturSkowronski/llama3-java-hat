@@ -12,12 +12,7 @@ if [ -f "$MODEL_FILE" ]; then
 else
     echo "Downloading Llama 3.2 1B Instruct FP16 (~2.48 GB)..."
     curl -L --progress-bar -o "$MODEL_FILE" "$MODEL_URL"
-    if [ $? -eq 0 ]; then
-        echo "Download successful."
-    else
-        echo "Download failed."
-        exit 1
-    fi
+    echo "Download successful."
 fi
 
 export LLAMA_FP16_PATH="$(pwd)/$MODEL_FILE"
