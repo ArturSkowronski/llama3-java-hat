@@ -27,8 +27,9 @@ public class SiLU {
      * @param size the number of elements to process
      */
     public void apply(F32Array input, int size) {
-        // Plain Java — HAT dispatch has buffer sync issues with subsequent
-        // plain Java reads on the same buffer (e.g., elementWiseMul)
+        // Plain Java — HAT @Reflect dispatch passes unit tests (same-buffer reuse)
+        // but produces garbage in real 16-layer inference ({{{... instead of coherent text).
+        // The data visibility bug is more subtle than buffer reuse alone.
         for (int i = 0; i < size; i++) {
             float x = input.array(i);
             input.array(i, x / (1.0f + (float) Math.exp(-x)));

@@ -146,11 +146,22 @@ public class LlamaInference {
         generated = 1;
 
         // Auto-regressive generation
+        boolean isCI = System.getenv("CI") != null;
         while (generated < maxNewTokens && !stopTokens.contains(nextToken)) {
             lastLogits = forward(nextToken, promptTokens.length + generated - 1);
             nextToken = argmax(lastLogits);
             result[generated] = nextToken;
             generated++;
+
+            // Print progress on CI to prevent GitHub Actions no-output timeout (~10 min)
+            // Use stderr because Gradle buffers stdout until test completion
+            if (isCI && generated % 4 == 0) {
+                System.err.print(".");
+                System.err.flush();
+            }
+        }
+        if (isCI && generated > 0) {
+            System.err.println(); // newline after dots
         }
 
         return Arrays.copyOf(result, generated);
