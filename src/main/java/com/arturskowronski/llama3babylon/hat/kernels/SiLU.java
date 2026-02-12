@@ -9,10 +9,10 @@ import jdk.incubator.code.Reflect;
 
 /**
  * SiLU (Sigmoid Linear Unit) kernel for Llama 3.2 1B.
- * 
+ *
  * Formula: SiLU(x) = x * sigmoid(x) = x / (1 + exp(-x))
  */
-public class SiLU {
+public class SiLU implements ISiLU {
 
     private final Accelerator accelerator;
 
