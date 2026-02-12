@@ -154,13 +154,14 @@ public class LlamaInference {
             generated++;
 
             // Print progress on CI to prevent GitHub Actions no-output timeout (~10 min)
+            // Use stderr because Gradle buffers stdout until test completion
             if (isCI && generated % 4 == 0) {
-                System.out.print(".");
-                System.out.flush();
+                System.err.print(".");
+                System.err.flush();
             }
         }
         if (isCI && generated > 0) {
-            System.out.println(); // newline after dots
+            System.err.println(); // newline after dots
         }
 
         return Arrays.copyOf(result, generated);
