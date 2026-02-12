@@ -86,8 +86,7 @@ public class HybridKernelFactory implements IKernelFactory {
     @Override
     public IAttention createAttention(Accelerator acc) {
         if (enableHAT.contains(KernelType.ATTENTION)) {
-            // TODO: Create AttentionHAT when implemented
-            throw new UnsupportedOperationException("Attention HAT not yet implemented");
+            return new AttentionHAT(acc);
         }
         return new Attention(acc);
     }
