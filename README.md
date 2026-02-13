@@ -5,15 +5,13 @@
 [![Nightly E2E](https://github.com/ArturSkowronski/llama3-java-hat/actions/workflows/nightly.yml/badge.svg)](https://github.com/ArturSkowronski/llama3-java-hat/actions/workflows/nightly.yml)
 [![Weekly Full Matrix](https://github.com/ArturSkowronski/llama3-java-hat/actions/workflows/weekly-full-matrix.yml/badge.svg)](https://github.com/ArturSkowronski/llama3-java-hat/actions/workflows/weekly-full-matrix.yml)
 
-## What Is This
-
 This is a from-scratch implementation of Llama 3.2 1B Instruct inference in Java, running on [Project Babylon](https://openjdk.org/projects/babylon/) and its Hardware Accelerator Toolkit (HAT). The whole thing - GGUF model loading, BPE tokenization, a full 16-layer transformer forward pass with GQA attention, KV cache, and greedy token generation - sits in about 2,500 lines of Java 26 with preview features enabled.
 
 The reference implementation is [mukel/llama3.java](https://github.com/mukel/llama3.java) and [beehive-lab/GPULlama3.java](https://github.com/beehive-lab/GPULlama3.java) . This project adapts it for HAT's `@Reflect` kernel dispatch, which (if you're not keeping up with Babylon) is a way to express GPU-friendly compute kernels in plain Java and have the runtime lower them to hardware-specific backends. Think of it as "what if Java had CUDA, but it was just Java."
 
 The interesting part: **all six compute kernels run through HAT dispatch** - GEMV, RMSNorm, RoPE, SiLU, Softmax, and Attention. That's 100% kernel coverage, roughly 8,000 HAT dispatches per 32-token inference, producing output identical to the plain Java baseline. Character for character. The model tells the same bad programming joke either way.
 
-## What Actually Works
+## What actually works
 
 The complete inference pipeline, end to end. You give it a GGUF file, it loads tensors (F16 and F32), builds a BPE tokenizer from the GGUF vocabulary metadata, formats your prompt using the Llama 3 Instruct chat template, runs it through 16 transformer layers with grouped-query attention (32 query heads, 8 KV heads, so a 4:1 GQA ratio), and generates tokens greedily until it hits EOS or the token limit.
 
@@ -31,6 +29,8 @@ The architecture uses a Strategy Pattern for kernel dispatch. An `IKernelFactory
 | Attention | Multi-head attention (~32 ops/token) | Two sequential dispatches per head |
 
 The hybrid pattern for RMSNorm and Softmax deserves a note: the reduction step (sum of squares, finding max) runs in plain Java because HAT's Java sequential backend doesn't parallelize reductions well. The normalization step dispatches through HAT. It's pragmatic, not pretty, but it works and it'll map cleanly to GPU backends when those are ready.
+
+## Verification pipelines
 
 | | Workflow | Schedule |
 |---|---|---|
@@ -87,7 +87,7 @@ LLAMA_FP16_PATH=/path/to/Llama-3.2-1B-Instruct-f16.gguf ./gradlew integrationTes
 
 The E2E tests are split per kernel. There's a `ChatIntegrationTestWith{Kernel}HAT` for each of the six kernels individually, plus `ChatIntegrationTestWithAllHAT` that enables all six simultaneously. Each test runs the same prompt ("Tell a joke about programming") and validates the output isn't gibberish using heuristics for repeated characters, non-ASCII ratio, and character diversity. The expected output (if you're curious): "Why did the programmer quit his job? Because he didn't get arrays."
 
-## Current Limitations
+## Current limitations
 
 This is intentionally specialized. It does one thing and does it correctly.
 
@@ -117,4 +117,4 @@ Roughly in order of what would be most interesting to tackle:
 
 ---
 
-*Based on [mukel/llama3.java](https://github.com/mukel/llama3.java). Built with [Project Babylon](https://openjdk.org/projects/babylon/) (Java 26, code-reflection branch).*
+*Based on [mukel/llama3.java](https://github.com/mukel/llama3.java). Built with [Project Babylon](https://openjdk.org/projects/babylon/) (Java 26, code-reflection branch). All the good ideas are theirs, all the bad code is mine.*
