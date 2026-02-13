@@ -1,7 +1,10 @@
 ### Llama 3 HAT Implementation
 
-[![Build Babylon and Run Tests](https://github.com/ArturSkowronski/llama3-java-hat/actions/workflows/ci.yml/badge.svg)](https://github.com/ArturSkowronski/llama3-java-hat/actions/workflows/ci.yml)
-[![Chat Integration Test (Plain Java, no HAT)](https://github.com/ArturSkowronski/llama3-java-hat/actions/workflows/chat-test.yml/badge.svg)](https://github.com/ArturSkowronski/llama3-java-hat/actions/workflows/chat-test.yml)
+[![CI](https://github.com/ArturSkowronski/llama3-java-hat/actions/workflows/ci.yml/badge.svg)](https://github.com/ArturSkowronski/llama3-java-hat/actions/workflows/ci.yml)
+[![E2E Integration Tests](https://github.com/ArturSkowronski/llama3-java-hat/actions/workflows/chat-test.yml/badge.svg)](https://github.com/ArturSkowronski/llama3-java-hat/actions/workflows/chat-test.yml)
+![Java](https://img.shields.io/badge/Java-26_(Babylon)-orange)
+![HAT Kernels](https://img.shields.io/badge/HAT_Kernels-6%2F6_(100%25)-brightgreen)
+![Model](https://img.shields.io/badge/Model-Llama_3.2_1B_Instruct_FP16-blue)
 
 This project implements Llama 3.2 1B Instruct (FP16) inference using Project Babylon and HAT (Hardware Accelerator Toolkit).
 
