@@ -7,11 +7,11 @@
 
 ## What Is This
 
-This is a from-scratch implementation of Llama 3.2 1B Instruct inference in Java, running on [Project Babylon](https://openjdk.org/projects/babylon/) and its Hardware Accelerator Toolkit (HAT). The whole thing -- GGUF model loading, BPE tokenization, a full 16-layer transformer forward pass with GQA attention, KV cache, and greedy token generation -- sits in about 2,500 lines of Java 26 with preview features enabled.
+This is a from-scratch implementation of Llama 3.2 1B Instruct inference in Java, running on [Project Babylon](https://openjdk.org/projects/babylon/) and its Hardware Accelerator Toolkit (HAT). The whole thing - GGUF model loading, BPE tokenization, a full 16-layer transformer forward pass with GQA attention, KV cache, and greedy token generation - sits in about 2,500 lines of Java 26 with preview features enabled.
 
 The reference implementation is [mukel/llama3.java](https://github.com/mukel/llama3.java) and [beehive-lab/GPULlama3.java](https://github.com/beehive-lab/GPULlama3.java) . This project adapts it for HAT's `@Reflect` kernel dispatch, which (if you're not keeping up with Babylon) is a way to express GPU-friendly compute kernels in plain Java and have the runtime lower them to hardware-specific backends. Think of it as "what if Java had CUDA, but it was just Java."
 
-The interesting part: **all six compute kernels run through HAT dispatch** -- GEMV, RMSNorm, RoPE, SiLU, Softmax, and Attention. That's 100% kernel coverage, roughly 8,000 HAT dispatches per 32-token inference, producing output identical to the plain Java baseline. Character for character. The model tells the same bad programming joke either way.
+The interesting part: **all six compute kernels run through HAT dispatch** - GEMV, RMSNorm, RoPE, SiLU, Softmax, and Attention. That's 100% kernel coverage, roughly 8,000 HAT dispatches per 32-token inference, producing output identical to the plain Java baseline. Character for character. The model tells the same bad programming joke either way.
 
 ## What Actually Works
 
@@ -74,7 +74,7 @@ Unit tests run without any model files:
 
 Integration tests need models. There are two tiers:
 
-**TinyLlama tests** (lightweight, fast, good for CI):
+**TinyLlama tests of GGUF format** (lightweight, fast, good for CI):
 ```bash
 ./scripts/download_tinyllama.sh
 TINY_LLAMA_PATH=$(pwd)/tinyllama-1.1b-chat-v1.0.Q2_K.gguf ./gradlew integrationTest
@@ -91,15 +91,15 @@ The E2E tests are split per kernel. There's a `ChatIntegrationTestWith{Kernel}HA
 
 This is intentionally specialized. It does one thing and does it correctly.
 
-**One model only.** Architecture constants (2048 hidden size, 16 layers, 32 heads, 8 KV heads) are hardcoded for Llama 3.2 1B. There's no model auto-detection, no config parsing from GGUF metadata. If you point it at a 3B or 8B model, it won't give you a helpful error -- it'll just produce garbage (or crash, if you're lucky).
+**One model only.** Architecture constants (2048 hidden size, 16 layers, 32 heads, 8 KV heads) are hardcoded for Llama 3.2 1B. There's no model auto-detection, no config parsing from GGUF metadata. If you point it at a 3B or 8B model, it won't give you a helpful error - it'll just produce garbage (or crash, if you're lucky).
 
 **FP16 and F32 tensors only.** No quantization support whatsoever. No `Q4_0`, no K-quants, nothing. F16 gets dequantized CPU-side via `Float.float16ToFloat()`. The model file is 2.5 GB because that's what FP16 costs you.
 
-**Java sequential backend only.** HAT supports OpenCL and PTX backends for actual GPU execution. This project currently uses the Java sequential backend, which means HAT dispatch is running the kernels on CPU, in Java, sequentially. Yes, that means it's not faster than plain Java -- the point (for now) is correctness verification, not performance. The architecture is ready for GPU backends; the kernel code won't need to change.
+**Java sequential backend only.** HAT supports OpenCL and PTX backends for actual GPU execution. This project currently uses the Java sequential backend, which means HAT dispatch is running the kernels on CPU, in Java, sequentially. Yes, that means it's not faster than plain Java - the point (for now) is correctness verification, not performance. The architecture is ready for GPU backends - the kernel code won't need to change, I just need to run some additional tests.
 
-**Greedy decoding only.** No top-k, no top-p, no temperature sampling. The model deterministically picks the most probable next token every time. This is fine for testing (reproducible output) but you wouldn't want it for creative text generation.
+**Greedy decoding only.** No top-k, no top-p, no temperature sampling. The model deterministically picks the most probable next token every time. This is fine for testing (reproducible output) but you wouldn't want it for creative text generation 😉. Additionally, that also means it is not a good target for benchmarks.
 
-**No streaming.** The `chat()` method returns the complete response as a string. There's no token-by-token callback, no async generation.
+**No streaming.** The `chat()` method returns the complete response as a string. There's no token-by-token callback, no async generation. That is... problematic, as it forced me to do some magic with Github Actions Runners that were killing my sluggish (blame the author, not the HAT technology), non-optimized token generation tests.
 
 ## What's Next
 
@@ -113,7 +113,7 @@ Roughly in order of what would be most interesting to tackle:
 
 **Sampling strategies.** Top-k and top-p sampling, temperature control. Straightforward to add on top of the existing logits output.
 
-**Kernel fusion.** The current pipeline dispatches each kernel separately. Fusing RMSNorm with the QKV projection (which is just three GEMV calls) would reduce memory round-trips significantly -- assuming a GPU backend where that matters.
+**Kernel fusion.** The current pipeline dispatches each kernel separately. Fusing RMSNorm with the QKV projection (which is just three GEMV calls) would reduce memory round-trips significantly - assuming a GPU backend where that matters.
 
 ---
 
