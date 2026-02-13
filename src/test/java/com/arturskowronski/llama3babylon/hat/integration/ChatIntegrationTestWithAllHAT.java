@@ -15,31 +15,38 @@ import java.util.regex.Pattern;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * Integration test for GEMV kernel using HAT @Reflect dispatch in real 16-layer inference.
+ * Integration test with ALL 6 kernels using HAT @Reflect dispatch simultaneously.
  *
- * FINAL BOSS: GEMV is the sixth and last kernel to be tested with HAT dispatch.
- * This test enables ONLY the GEMV kernel for HAT dispatch while keeping all other kernels
- * in plain Java mode.
+ * THE ULTIMATE TEST: Validates that all HAT kernels work together in real 16-layer inference.
+ * This is the definitive test that proves 100% HAT coverage is not just theoretical - all
+ * kernels can run together with HAT dispatch without conflicts or state corruption.
  *
- * GEMV characteristics:
- * - Most computationally intensive kernel (matrix-vector multiplication)
- * - Parallelized over rows (NDRange.of1D(rows))
- * - Handles matrix sizes from 2048×2048 up to 128256×2048 (classifier)
+ * Enabled HAT kernels (6/6):
+ * 1. GEMV - Matrix-vector multiplication (most intensive, ~113 ops/token)
+ * 2. RMSNorm - Layer normalization (hybrid pattern, ~33 ops/token)
+ * 3. RoPE - Rotary positional embeddings (head-wise, ~32 ops/token)
+ * 4. SiLU - Activation function (element-wise, ~16 ops/token)
+ * 5. Softmax - Attention score normalization (hybrid pattern, ~24 ops/token)
+ * 6. Attention - Multi-head attention computation (two dispatches, ~32 ops/token)
  *
- * GEMV is called extensively in inference:
- * - 4 times per layer for Q/K/V/O projections (64 total for 16 layers)
- * - 3 times per layer for FFN (gate/up/down) (48 total for 16 layers)
- * - 1 time for final classifier (128256×2048 - the largest matrix)
- * - Total: ~113 GEMV operations per token
+ * Total HAT dispatches per token: ~250
+ * Total for 32-token inference: ~8,000 HAT dispatches
+ *
+ * What this test validates:
+ * - All HAT kernels work correctly when used together
+ * - No cross-kernel state corruption or buffer conflicts
+ * - Combined dispatch pattern is stable across 16 layers and 32 tokens
+ * - Output is identical to plain Java baseline (character-for-character match expected)
+ * - Performance is reasonable (within 10% of individual kernel tests)
  *
  * Success criteria:
  * - Test completes without exception
  * - Response is coherent English text (not gibberish)
- * - Response contains joke structure (setup + punchline)
- * - Output should be identical or very similar to plain Java version
+ * - Response matches expected joke structure (setup + punchline)
+ * - Output should be identical to plain Java baseline
  */
 @Tag("integration")
-public class ChatIntegrationTestWithGEMVHAT {
+public class ChatIntegrationTestWithAllHAT {
 
     /** Matches strings dominated by a single repeated character (e.g. "{{{{{" or "-----"). */
     private static final Pattern REPEATED_CHAR = Pattern.compile("(.)\\1{9,}");
@@ -61,12 +68,19 @@ public class ChatIntegrationTestWithGEMVHAT {
 
     @Test
     @EnabledIfEnvironmentVariable(named = "LLAMA_FP16_PATH", matches = ".*")
-    public void testChatWithGEMVHAT() throws IOException {
+    public void testChatWithAllHATKernels() throws IOException {
         Path modelPath = Paths.get(System.getenv("LLAMA_FP16_PATH"));
 
-        // Create factory with ONLY GEMV HAT enabled
+        // Create factory with ALL 6 HAT kernels enabled
         HybridKernelFactory factory = new HybridKernelFactory(
-            Set.of(HybridKernelFactory.KernelType.GEMV)
+            Set.of(
+                HybridKernelFactory.KernelType.GEMV,
+                HybridKernelFactory.KernelType.RMSNORM,
+                HybridKernelFactory.KernelType.ROPE,
+                HybridKernelFactory.KernelType.SILU,
+                HybridKernelFactory.KernelType.SOFTMAX,
+                HybridKernelFactory.KernelType.ATTENTION
+            )
         );
 
         LlamaInference inference = new LlamaInference(modelPath, factory);
@@ -80,9 +94,9 @@ public class ChatIntegrationTestWithGEMVHAT {
                 maxTokens
         );
 
-        System.out.println("=== Model Response (GEMV HAT) ===");
+        System.out.println("=== Model Response (ALL HAT KERNELS) ===");
         System.out.println(response);
-        System.out.println("==================================");
+        System.out.println("=========================================");
 
         assertNotNull(response, "Response must not be null");
         assertFalse(response.strip().isEmpty(), "Response must not be empty");

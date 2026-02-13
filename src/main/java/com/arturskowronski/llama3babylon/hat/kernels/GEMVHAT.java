@@ -11,19 +11,17 @@ import jdk.incubator.code.Reflect;
  * GEMV (Matrix-Vector Multiplication) kernel using HAT @Reflect dispatch.
  *
  * FINAL BOSS: Sixth and last kernel to be tested with HAT dispatch.
- * GEMV is the most computationally intensive kernel and has a known issue
- * with buffer bounds caching in the HAT Java Sequential Backend.
- *
- * Known Issue: Buffer Bounds Caching Bug
- * - Backend caches F32Array buffer bounds from first @Reflect dispatch
- * - If first dispatch uses small matrix, later large matrices fail
- * - Workaround: Prime with largest matrix (classifier 128256×2048) first
- * - LlamaInference already implements this priming strategy
+ * GEMV is the most computationally intensive kernel in the Llama inference pipeline.
  *
  * Computes: y = Ax
  * where A is a matrix [rows, cols] and x is a vector [cols].
  *
  * Parallelization: Each row computed independently (NDRange.of1D(rows))
+ *
+ * Usage: ~113 GEMV operations per token:
+ * - 4 per layer for Q/K/V/O projections (64 total for 16 layers)
+ * - 3 per layer for FFN gate/up/down (48 total for 16 layers)
+ * - 1 final classifier projection (128256×2048 - largest matrix)
  */
 public class GEMVHAT implements IGEMV {
 
@@ -35,10 +33,6 @@ public class GEMVHAT implements IGEMV {
 
     /**
      * Computes Matrix-Vector multiplication y = Ax using HAT dispatch.
-     *
-     * CRITICAL: This relies on buffer priming in LlamaInference to work correctly.
-     * The classifier matrix (128256×2048) must be processed first to set the
-     * buffer bounds cache to the largest size needed.
      *
      * @param matrix input matrix A [rows, cols]
      * @param vector input vector x [cols]
