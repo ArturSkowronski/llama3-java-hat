@@ -5,6 +5,8 @@ import hat.Accelerator;
 import java.util.EnumSet;
 import java.util.Set;
 
+import com.arturskowronski.llama3babylon.hat.kernels.AttentionHAT;
+
 /**
  * Factory that allows selective enablement of HAT kernels.
  * Each kernel type can be individually toggled between HAT dispatch and plain Java.
