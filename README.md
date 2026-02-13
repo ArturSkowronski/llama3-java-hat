@@ -73,7 +73,7 @@ You need the Llama 3.2 1B Instruct model in FP16 GGUF format (~2.5 GB). A downlo
 Then:
 
 ```bash
-./gradlew run --args="path/to/Llama-3.2-1B-Instruct-f16.gguf"
+./gradlew run --args="Llama-3.2-1B-Instruct-f16.gguf"
 ```
 
 ## Tests
