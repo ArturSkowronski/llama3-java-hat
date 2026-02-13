@@ -46,7 +46,7 @@ The architecture uses a Strategy Pattern for kernel dispatch. An `IKernelFactory
 | Softmax | Score normalization (~24 ops/token) | Hybrid: reduction in Java, normalize in HAT |
 | Attention | Multi-head attention (~32 ops/token) | Two sequential dispatches per head |
 
-The hybrid pattern for RMSNorm and Softmax deserves a note: the reduction step (sum of squares, finding max) runs in plain Java because HAT's Java sequential backend doesn't parallelize reductions well. The normalization step dispatches through HAT. It's pragmatic, not pretty, but it works and it'll map cleanly to GPU backends when those are ready.
+The hybrid pattern for RMSNorm and Softmax deserves a note. Both operations have two phases: a reduction (sum of squares for RMSNorm, find-max-then-sum-exp for Softmax) that reads all elements to produce a single scalar, followed by a normalization that multiplies every element by that scalar. HAT's `@Reflect` dispatch model works by giving each kernel invocation a single index via `KernelContext` -- great for embarrassingly parallel work where each element is independent, but there's no built-in mechanism for cross-lane communication or shared accumulators. You can't have 2,048 kernel invocations all contributing to the same `float sum` without atomics or a reduction tree, and the Java sequential backend provides neither. So the reduction runs as a plain Java loop (which is fine -- it's a single pass over one vector), and then the normalization step dispatches through HAT where each element just gets multiplied by the precomputed scalar. It's pragmatic, not pretty, but it works and it'll map cleanly to GPU backends when those are ready -- the reduction phase will just need a proper parallel reduction tree.
 
 ## Verification pipelines
 
