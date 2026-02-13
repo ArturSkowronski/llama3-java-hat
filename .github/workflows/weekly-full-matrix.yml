@@ -1,0 +1,271 @@
+name: Weekly Full Matrix
+
+on:
+  schedule:
+    - cron: '0 3 * * 0'  # Sunday 3 AM UTC
+  workflow_dispatch:
+
+jobs:
+  build-babylon:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Babylon
+        uses: actions/checkout@v4
+        with:
+          repository: openjdk/babylon
+          path: babylon
+          ref: code-reflection
+
+      - name: Cache Babylon JDK and HAT
+        id: cache-babylon
+        uses: actions/cache@v4
+        with:
+          path: |
+            babylon/build
+            babylon/hat/build
+          key: ${{ runner.os }}-babylon-hat-weekly-${{ hashFiles('babylon/.git/HEAD') }}
+          restore-keys: |
+            ${{ runner.os }}-babylon-hat-weekly-
+            ${{ runner.os }}-babylon-hat-
+
+      - name: Install Build Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential libx11-dev libxext-dev libxrender-dev libxrandr-dev libxtst-dev libxt-dev libcups2-dev libasound2-dev libfontconfig1-dev autoconf
+
+      - name: Setup Boot JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: '25'
+          distribution: 'temurin'
+
+      - name: Configure and Build Babylon
+        id: build-jdk
+        continue-on-error: true
+        run: |
+          cd babylon
+          if [ -f build/linux-x86_64-server-release/spec.gmk ]; then
+            if ! make JOBS=$(nproc) CONF=linux-x86_64-server-release check-conf > /dev/null 2>&1; then
+              make reconfigure JOBS=$(nproc) CONF=linux-x86_64-server-release
+            fi
+          else
+            bash configure --with-conf-name=linux-x86_64-server-release --with-debug-level=release --with-native-debug-symbols=none --disable-warnings-as-errors
+          fi
+          make images JOBS=$(nproc) CONF=linux-x86_64-server-release
+
+      - name: Retry Build if failed
+        if: steps.build-jdk.outcome == 'failure'
+        run: |
+          cd babylon
+          make reconfigure JOBS=$(nproc) CONF=linux-x86_64-server-release
+          make images JOBS=$(nproc) CONF=linux-x86_64-server-release
+
+      - name: Build HAT
+        run: |
+          cd babylon/hat
+          export JAVA_HOME=$(pwd)/../build/linux-x86_64-server-release/images/jdk
+          export PATH=$JAVA_HOME/bin:$PATH
+          bash hat/bootstrap.bash
+          java -cp hat/job.jar --enable-preview --source 26 hat.java bld
+
+      - name: Upload Babylon Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: babylon-jdk-weekly
+          path: |
+            babylon/build/linux-x86_64-server-release/images/jdk
+            babylon/hat/build
+          include-hidden-files: true
+          retention-days: 7
+
+  baseline-test:
+    needs: build-babylon
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout Project
+        uses: actions/checkout@v4
+
+      - name: Download Babylon Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: babylon-jdk-weekly
+          path: babylon-jdk
+
+      - name: Setup Environment
+        run: |
+          JDK_PATH=babylon-jdk/build/linux-x86_64-server-release/images/jdk
+          chmod -R +x $JDK_PATH/bin/
+          find $JDK_PATH/lib -type f -name "jspawnhelper" -exec chmod +x {} \;
+          find $JDK_PATH/lib -type f -name "*.so" -exec chmod +x {} \;
+          echo "JAVA_BABYLON_ROOT=$(pwd)/babylon-jdk" >> $GITHUB_ENV
+          chmod +x gradlew
+
+      - name: Cache Llama 3.2 1B Model
+        id: cache-llama
+        uses: actions/cache@v4
+        with:
+          path: Llama-3.2-1B-Instruct-f16.gguf
+          key: llama-3.2-1b-instruct-f16-gguf
+
+      - name: Download Llama 3.2 1B Instruct FP16
+        if: steps.cache-llama.outputs.cache-hit != 'true'
+        run: |
+          chmod +x scripts/download_llama_fp16.sh
+          ./scripts/download_llama_fp16.sh
+
+      - name: Build Project
+        run: |
+          export JAVA_HOME=$JAVA_BABYLON_ROOT/build/linux-x86_64-server-release/images/jdk
+          export PATH=$JAVA_HOME/bin:$PATH
+          ./gradlew build -x test --console=plain
+
+      - name: Run Plain Java Baseline Test
+        timeout-minutes: 30
+        env:
+          CI: "true"
+        run: |
+          export JAVA_HOME=$JAVA_BABYLON_ROOT/build/linux-x86_64-server-release/images/jdk
+          export PATH=$JAVA_HOME/bin:$PATH
+          export LLAMA_FP16_PATH=$(pwd)/Llama-3.2-1B-Instruct-f16.gguf
+          ./gradlew integrationTest --tests "ChatIntegrationTest" --console=plain
+
+      - name: Upload Baseline Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: weekly-results-baseline
+          path: |
+            build/reports/tests/integrationTest/
+            build/test-results/integrationTest/
+          retention-days: 7
+
+  individual-hat-tests:
+    needs: build-babylon
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      matrix:
+        kernel: [SiLU, RoPE, Softmax, RMSNorm, Attention, GEMV]
+      fail-fast: false
+    steps:
+      - name: Checkout Project
+        uses: actions/checkout@v4
+
+      - name: Download Babylon Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: babylon-jdk-weekly
+          path: babylon-jdk
+
+      - name: Setup Environment
+        run: |
+          JDK_PATH=babylon-jdk/build/linux-x86_64-server-release/images/jdk
+          chmod -R +x $JDK_PATH/bin/
+          find $JDK_PATH/lib -type f -name "jspawnhelper" -exec chmod +x {} \;
+          find $JDK_PATH/lib -type f -name "*.so" -exec chmod +x {} \;
+          echo "JAVA_BABYLON_ROOT=$(pwd)/babylon-jdk" >> $GITHUB_ENV
+          chmod +x gradlew
+
+      - name: Cache Llama 3.2 1B Model
+        id: cache-llama
+        uses: actions/cache@v4
+        with:
+          path: Llama-3.2-1B-Instruct-f16.gguf
+          key: llama-3.2-1b-instruct-f16-gguf
+
+      - name: Download Llama 3.2 1B Instruct FP16
+        if: steps.cache-llama.outputs.cache-hit != 'true'
+        run: |
+          chmod +x scripts/download_llama_fp16.sh
+          ./scripts/download_llama_fp16.sh
+
+      - name: Build Project
+        run: |
+          export JAVA_HOME=$JAVA_BABYLON_ROOT/build/linux-x86_64-server-release/images/jdk
+          export PATH=$JAVA_HOME/bin:$PATH
+          ./gradlew build -x test --console=plain
+
+      - name: Run ${{ matrix.kernel }} HAT Integration Test
+        timeout-minutes: 30
+        env:
+          CI: "true"
+        run: |
+          export JAVA_HOME=$JAVA_BABYLON_ROOT/build/linux-x86_64-server-release/images/jdk
+          export PATH=$JAVA_HOME/bin:$PATH
+          export LLAMA_FP16_PATH=$(pwd)/Llama-3.2-1B-Instruct-f16.gguf
+          echo "Running ${{ matrix.kernel }} HAT kernel test"
+          ./gradlew integrationTest --tests "ChatIntegrationTestWith${{ matrix.kernel }}HAT" --console=plain
+
+      - name: Upload ${{ matrix.kernel }} Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: weekly-results-${{ matrix.kernel }}-hat
+          path: |
+            build/reports/tests/integrationTest/
+            build/test-results/integrationTest/
+          retention-days: 7
+
+  all-hat-test:
+    needs: [baseline-test, individual-hat-tests]
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout Project
+        uses: actions/checkout@v4
+
+      - name: Download Babylon Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: babylon-jdk-weekly
+          path: babylon-jdk
+
+      - name: Setup Environment
+        run: |
+          JDK_PATH=babylon-jdk/build/linux-x86_64-server-release/images/jdk
+          chmod -R +x $JDK_PATH/bin/
+          find $JDK_PATH/lib -type f -name "jspawnhelper" -exec chmod +x {} \;
+          find $JDK_PATH/lib -type f -name "*.so" -exec chmod +x {} \;
+          echo "JAVA_BABYLON_ROOT=$(pwd)/babylon-jdk" >> $GITHUB_ENV
+          chmod +x gradlew
+
+      - name: Cache Llama 3.2 1B Model
+        id: cache-llama
+        uses: actions/cache@v4
+        with:
+          path: Llama-3.2-1B-Instruct-f16.gguf
+          key: llama-3.2-1b-instruct-f16-gguf
+
+      - name: Download Llama 3.2 1B Instruct FP16
+        if: steps.cache-llama.outputs.cache-hit != 'true'
+        run: |
+          chmod +x scripts/download_llama_fp16.sh
+          ./scripts/download_llama_fp16.sh
+
+      - name: Build Project
+        run: |
+          export JAVA_HOME=$JAVA_BABYLON_ROOT/build/linux-x86_64-server-release/images/jdk
+          export PATH=$JAVA_HOME/bin:$PATH
+          ./gradlew build -x test --console=plain
+
+      - name: Run All-HAT Integration Test (6/6 kernels)
+        timeout-minutes: 30
+        env:
+          CI: "true"
+        run: |
+          export JAVA_HOME=$JAVA_BABYLON_ROOT/build/linux-x86_64-server-release/images/jdk
+          export PATH=$JAVA_HOME/bin:$PATH
+          export LLAMA_FP16_PATH=$(pwd)/Llama-3.2-1B-Instruct-f16.gguf
+          echo "Running ALL 6 HAT kernels simultaneously"
+          ./gradlew integrationTest --tests "ChatIntegrationTestWithAllHAT" --console=plain
+
+      - name: Upload All-HAT Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: weekly-results-all-hat
+          path: |
+            build/reports/tests/integrationTest/
+            build/test-results/integrationTest/
+          retention-days: 7
