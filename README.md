@@ -40,7 +40,7 @@ The architecture uses a Strategy Pattern for kernel dispatch. An `IKernelFactory
 | Softmax | Score normalization (~24 ops/token) | Hybrid: reduction in Java, normalize in HAT |
 | Attention | Multi-head attention (~32 ops/token) | Two sequential dispatches per head |
 
-The "Hybrid" pattern for RMSNorm and Softmax means the reduction phase runs in plain Java and only the normalization dispatches through HAT. This is a deliberate workaround for how HAT's dispatch model handles reductions -- see [Why hybrid kernels?](#why-hybrid-kernels) below for the full explanation.
+The "Hybrid" pattern for RMSNorm and Softmax means the reduction phase runs in plain Java and only the normalization dispatches through HAT. This is a deliberate workaround for how HAT's dispatch model handles reductions - see [Why hybrid kernels?](#why-hybrid-kernels) below for the full explanation (and if I'm wrong, please let me know - I'm learner for life 😊).
 
 ## Verification pipelines
 
