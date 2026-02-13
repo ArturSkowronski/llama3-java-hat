@@ -19,7 +19,7 @@
 
 -----------
 
-The reference implementation is [mukel/llama3.java](https://github.com/mukel/llama3.java) and [beehive-lab/GPULlama3.java](https://github.com/beehive-lab/GPULlama3.java) . This project adapts it for HAT's `@Reflect` kernel dispatch, which (if you're not keeping up with Babylon) is a way to express GPU-friendly compute kernels in plain Java and have the runtime lower them to hardware-specific backends. Think of it as "what if Java had CUDA, but it was just Java."
+The reference implementation is [mukel/llama3.java](https://github.com/mukel/llama3.java) and [beehive-lab/GPULlama3.java](https://github.com/beehive-lab/GPULlama3.java). This project adapts it for HAT's `@Reflect` kernel dispatch, which (if you're not keeping up with Babylon) is a way to express GPU-friendly compute kernels in plain Java and have the runtime lower them to hardware-specific backends. Think of it as "what if Java had CUDA, but it was just Java."
 
 The interesting part: **all six compute kernels run through HAT dispatch** - GEMV, RMSNorm, RoPE, SiLU, Softmax, and Attention. That's 100% kernel coverage, roughly 8,000 HAT dispatches per 32-token inference, producing output identical to the plain Java baseline. Character for character. The model tells the same bad programming joke either way.
 
@@ -155,10 +155,10 @@ P.S. [Gemini Code Assist](https://cloud.google.com/products/gemini-code-assist) 
 
 Both RMSNorm and Softmax have two phases: a reduction (sum of squares for RMSNorm, find-max-then-sum-exp for Softmax) that reads all elements to produce a single scalar, followed by a normalization that multiplies every element by that scalar.
 
-HAT's `@Reflect` dispatch model works by giving each kernel invocation a single index via `KernelContext` -- great for embarrassingly parallel work where each element is independent, but there's no built-in mechanism for cross-lane communication or shared accumulators. You can't have 2,048 kernel invocations all contributing to the same `float sum` without atomics or a reduction tree, and the Java sequential backend provides neither.
+HAT's `@Reflect` dispatch model works by giving each kernel invocation a single index via `KernelContext` - great for embarrassingly parallel work where each element is independent, but there's no built-in mechanism for cross-lane communication or shared accumulators. You can't have 2,048 kernel invocations all contributing to the same `float sum` without atomics or a reduction tree, and the Java sequential backend provides neither.
 
-So the reduction runs as a plain Java loop (which is fine -- it's a single pass over one vector), and then the normalization step dispatches through HAT where each element just gets multiplied by the precomputed scalar. It's pragmatic, not pretty, but it works and it'll map cleanly to GPU backends when those are ready -- the reduction phase will just need a proper parallel reduction tree.
+So the reduction runs as a plain Java loop (which is fine - it's a single pass over one vector), and then the normalization step dispatches through HAT where each element just gets multiplied by the precomputed scalar. It's pragmatic, not pretty, but it works and it'll map cleanly to GPU backends when those are ready -- the reduction phase will just need a proper parallel reduction tree.
 
 ---
 
-*Based on [mukel/llama3.java](https://github.com/mukel/llama3.java). Built with [Project Babylon](https://openjdk.org/projects/babylon/) (Java 26, code-reflection branch). All the good ideas are theirs, all the bad code is mine.*
+*Based on [mukel/llama3.java](https://github.com/mukel/llama3.java) and [beehive-lab/GPULlama3.java](https://github.com/beehive-lab/GPULlama3.java). Built with [Project Babylon](https://openjdk.org/projects/babylon/) (Java 26, `code-reflection` branch). All the good ideas are theirs, all the bad code is mine 🥶.*
