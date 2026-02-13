@@ -5,6 +5,24 @@
 [![Nightly E2E](https://github.com/ArturSkowronski/llama3-java-hat/actions/workflows/nightly.yml/badge.svg)](https://github.com/ArturSkowronski/llama3-java-hat/actions/workflows/nightly.yml)
 [![Weekly Full Matrix](https://github.com/ArturSkowronski/llama3-java-hat/actions/workflows/weekly-full-matrix.yml/badge.svg)](https://github.com/ArturSkowronski/llama3-java-hat/actions/workflows/weekly-full-matrix.yml)
 
+
+-----------
+<table style="border: none;">
+<tr style="border: none;">
+<td style="width: 40%; vertical-align: middle; border: none;">
+<img src="https://i.imgur.com/y9f9riQ.jpeg" />
+</td>
+<td style="vertical-align: middle; padding-left: 20px; border: none;">  
+This is a from-scratch implementation of Llama 3.2 1B Instruct inference in Java, running on [Project Babylon](https://openjdk.org/projects/babylon/) and its Hardware Accelerator Toolkit (HAT). The whole thing - GGUF model loading, BPE tokenization, a full 16-layer transformer forward pass with GQA attention, KV cache, and greedy token generation - sits in about 2,500 lines of Java 26 with preview features enabled.
+<br><br>
+Builds on <a href="https://github.com/mukel/llama3.java">Llama3.java</a> by <a href="https://github.com/mukel">Alfonso² Peterssen</a>.
+Previous integration of TornadoVM and Llama2 it can be found in <a href="https://github.com/mikepapadim/llama2.tornadovm.java">llama2.tornadovm</a>.
+</td>
+</tr>
+</table>
+
+-----------
+
 This is a from-scratch implementation of Llama 3.2 1B Instruct inference in Java, running on [Project Babylon](https://openjdk.org/projects/babylon/) and its Hardware Accelerator Toolkit (HAT). The whole thing - GGUF model loading, BPE tokenization, a full 16-layer transformer forward pass with GQA attention, KV cache, and greedy token generation - sits in about 2,500 lines of Java 26 with preview features enabled.
 
 The reference implementation is [mukel/llama3.java](https://github.com/mukel/llama3.java) and [beehive-lab/GPULlama3.java](https://github.com/beehive-lab/GPULlama3.java) . This project adapts it for HAT's `@Reflect` kernel dispatch, which (if you're not keeping up with Babylon) is a way to express GPU-friendly compute kernels in plain Java and have the runtime lower them to hardware-specific backends. Think of it as "what if Java had CUDA, but it was just Java."
