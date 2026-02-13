@@ -27,7 +27,7 @@ The interesting part: **all six compute kernels run through HAT dispatch** - GEM
 
 The complete inference pipeline, end to end. You give it a GGUF file, it loads tensors (F16 and F32), builds a BPE tokenizer from the GGUF vocabulary metadata, formats your prompt using the Llama 3 Instruct chat template, runs it through 16 transformer layers with grouped-query attention (32 query heads, 8 KV heads, so a 4:1 GQA ratio), and generates tokens greedily until it hits EOS or the token limit.
 
-The architecture uses a Strategy Pattern for kernel dispatch. An `IKernelFactory` interface produces kernel implementations, and you get two factories out of the box: `PlainJavaKernelFactory` (pure loops, no HAT, always works) and `HybridKernelFactory` (lets you enable HAT selectively, per kernel type). This means you can run with any combination -- all plain Java, all HAT, or any mix in between. The factory design came from the need to debug HAT kernels one at a time, but it turned out to be a pretty clean separation regardless.
+The architecture uses a Strategy Pattern for kernel dispatch. An `IKernelFactory` interface produces kernel implementations, and you get two factories out of the box: `PlainJavaKernelFactory` (pure loops, no HAT, always works) and `HybridKernelFactory` (lets you enable HAT selectively, per kernel type). This means you can run with any combination - all plain Java, all HAT, or any mix in between. The factory design came from the need to debug HAT kernels one at a time, but it turned out to be a pretty clean separation regardless.
 
 **The six kernels and their HAT dispatch patterns:**
 
