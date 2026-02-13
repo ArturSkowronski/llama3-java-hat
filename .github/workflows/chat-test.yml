@@ -1,6 +1,11 @@
 name: E2E Integration Tests (FP16 + HAT)
 
 on:
+  pull_request:
+    branches: [ main ]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
   workflow_dispatch:
     inputs:
       test_scope:
@@ -159,9 +164,10 @@ jobs:
           retention-days: 7
 
   # Job 2: All-HAT test (all 6 kernels enabled simultaneously)
+  # Only on manual dispatch with all-hat or full-matrix scope (PRs run baseline only)
   all-hat-test:
     needs: baseline-test
-    if: inputs.test_scope == 'all-hat' || inputs.test_scope == 'full-matrix'
+    if: github.event_name == 'workflow_dispatch' && (inputs.test_scope == 'all-hat' || inputs.test_scope == 'full-matrix')
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
@@ -223,10 +229,10 @@ jobs:
             build/test-results/integrationTest/
           retention-days: 7
 
-  # Job 3: Individual HAT kernel matrix (full-matrix only)
+  # Job 3: Individual HAT kernel matrix (manual dispatch with full-matrix only)
   individual-hat-tests:
     needs: baseline-test
-    if: inputs.test_scope == 'full-matrix'
+    if: github.event_name == 'workflow_dispatch' && inputs.test_scope == 'full-matrix'
     runs-on: ubuntu-latest
     timeout-minutes: 60
     strategy:
