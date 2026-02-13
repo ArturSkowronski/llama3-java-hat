@@ -68,10 +68,6 @@ public class LlamaInference {
         this.x = F32Array.create(acc, LlamaModel.HIDDEN_SIZE);
         this.logits = F32Array.create(acc, LlamaModel.VOCAB_SIZE);
 
-        // Prime GEMV with classifier matrix (128256x2048 — largest in model)
-        // This forces HAT backend to cache buffer bounds large enough for all later dispatches
-        gemv.apply(outputWeight, x, logits, LlamaModel.VOCAB_SIZE, LlamaModel.HIDDEN_SIZE);
-
         // Allocate KV caches (one pair per layer)
         int kvDim = LlamaModel.NUM_KV_HEADS * LlamaModel.HEAD_DIM;
         this.kCaches = new F32Array[LlamaModel.NUM_LAYERS];
@@ -81,7 +77,7 @@ public class LlamaInference {
             vCaches[l] = F32Array.create(acc, LlamaModel.MAX_SEQ_LEN * kvDim);
         }
 
-        // Create transformer blocks (after GEMV priming)
+        // Create transformer blocks
         this.layers = new TransformerBlock[LlamaModel.NUM_LAYERS];
         for (int l = 0; l < LlamaModel.NUM_LAYERS; l++) {
             layers[l] = new TransformerBlock(model, l, factory);
