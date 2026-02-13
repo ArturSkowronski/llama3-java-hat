@@ -115,6 +115,16 @@ Roughly in order of what would be most interesting to tackle:
 
 **Kernel fusion.** The current pipeline dispatches each kernel separately. Fusing RMSNorm with the QKV projection (which is just three GEMV calls) would reduce memory round-trips significantly - assuming a GPU backend where that matters.
 
+## On Coding Agents
+
+This project was built with AI coding agents, and since transparency matters -- here's how.
+
+The daily driver was [Junie](https://www.jetbrains.com/junie/) (JetBrains' coding agent). The default model for straightforward tasks was Gemini 2.5 Flash, which honestly deserves more attention than it gets -- it's genuinely good for the kind of bread-and-butter coding work that makes up 80% of any project. For the heavier lifting (debugging HAT dispatch bugs across 16 transformer layers, designing the kernel factory architecture, figuring out why buffer bounds were being cached wrong), that was Claude Opus 4.6.
+
+To be clear: the project is mine. The architecture decisions, the kernel restoration strategy, the test structure, the PR workflow, the "let's try one kernel at a time and see what breaks" approach -- that's all human judgment. The agents wrote code under direction, not the other way around. That said, coding with agents is genuinely pleasant. It's pair programming where your partner types faster than you and never gets bored of running integration tests.
+
+P.S. [Gemini Code Assist](https://cloud.google.com/products/gemini-code-assist) was also in the mix, diligently reviewing every PR for potential mistakes. A solid number of its suggestions were useful and caught real issues. A few of them broke the build, but that's what CI is for.
+
 ---
 
 *Based on [mukel/llama3.java](https://github.com/mukel/llama3.java). Built with [Project Babylon](https://openjdk.org/projects/babylon/) (Java 26, code-reflection branch). All the good ideas are theirs, all the bad code is mine.*
