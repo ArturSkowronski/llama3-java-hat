@@ -17,7 +17,7 @@
 
 This is a from-scratch implementation of Llama 3.2 1B Instruct inference in Java, running on [Project Babylon](https://openjdk.org/projects/babylon/) and its Hardware Accelerator Toolkit (HAT). The whole thing -- GGUF model loading, BPE tokenization, a full 16-layer transformer forward pass with GQA attention, KV cache, and greedy token generation -- sits in about 2,500 lines of Java 26 with preview features enabled.
 
-The reference implementation is [mukel/llama3.java](https://github.com/mukel/llama3.java). This project adapts it for HAT's `@Reflect` kernel dispatch, which (if you're not keeping up with Babylon) is a way to express GPU-friendly compute kernels in plain Java and have the runtime lower them to hardware-specific backends. Think of it as "what if Java had CUDA, but it was just Java."
+The reference implementation is [mukel/llama3.java](https://github.com/mukel/llama3.java) and [beehive-lab/GPULlama3.java](https://github.com/beehive-lab/GPULlama3.java) . This project adapts it for HAT's `@Reflect` kernel dispatch, which (if you're not keeping up with Babylon) is a way to express GPU-friendly compute kernels in plain Java and have the runtime lower them to hardware-specific backends. Think of it as "what if Java had CUDA, but it was just Java."
 
 The interesting part: **all six compute kernels run through HAT dispatch** -- GEMV, RMSNorm, RoPE, SiLU, Softmax, and Attention. That's 100% kernel coverage, roughly 8,000 HAT dispatches per 32-token inference, producing output identical to the plain Java baseline. Character for character. The model tells the same bad programming joke either way.
 
