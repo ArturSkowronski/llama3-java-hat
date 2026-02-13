@@ -133,7 +133,7 @@ Roughly in order of what would be most interesting to tackle:
 
 **Quantization.** Supporting `Q4_0` and `Q8_0` would make this practical for machines with less RAM. The K-quant formats (`Q4_K`, `Q6_K`) are more complex but also more accurate. Each quantization type has its own block structure and dequantization kernel -- and those kernels themselves could be HAT-dispatched.
 
-**Model flexibility.** Reading architecture parameters from GGUF metadata instead of hardcoding them. This is mostly plumbing -- the GGUF reader already parses metadata, the constants just need to flow through.
+**Model flexibility.** Reading architecture parameters from GGUF metadata instead of hardcoding them. This is mostly plumbing - the GGUF reader already parses metadata, the constants just need to flow through.
 
 **Sampling strategies.** Top-k and top-p sampling, temperature control. Straightforward to add on top of the existing logits output.
 
