@@ -10,7 +10,7 @@
 <table style="border: none;">
 <tr style="border: none;">
 <td style="width: 40%; vertical-align: middle; border: none;">
-  <img src="media/llama3.jpeg" />
+  <img src="media/llama3.png" />
 </td><td>
   This is a from-scratch implementation of Llama 3.2 1B Instruct inference in Java, running on <a href="https://openjdk.org/projects/babylon/">Project Babylon</a> and its Hardware Accelerator Toolkit (HAT). The whole thing - GGUF model loading, BPE tokenization, a full 16-layer transformer forward pass with GQA attention, KV cache, and greedy token generation - sits in about 2,500 lines of Java 26 with preview features enabled.
   <br /><br />
