@@ -40,7 +40,7 @@ The architecture uses a Strategy Pattern for kernel dispatch. An `IKernelFactory
 | Softmax | Score normalization (~24 ops/token) | Hybrid: reduction in Java, normalize in HAT |
 | Attention | Multi-head attention (~32 ops/token) | Two sequential dispatches per head |
 
-The hybrid pattern for RMSNorm and Softmax deserves a note. Both operations have two phases: a reduction (sum of squares for RMSNorm, find-max-then-sum-exp for Softmax) that reads all elements to produce a single scalar, followed by a normalization that multiplies every element by that scalar. HAT's `@Reflect` dispatch model works by giving each kernel invocation a single index via `KernelContext` -- great for embarrassingly parallel work where each element is independent, but there's no built-in mechanism for cross-lane communication or shared accumulators. You can't have 2,048 kernel invocations all contributing to the same `float sum` without atomics or a reduction tree, and the Java sequential backend provides neither. So the reduction runs as a plain Java loop (which is fine -- it's a single pass over one vector), and then the normalization step dispatches through HAT where each element just gets multiplied by the precomputed scalar. It's pragmatic, not pretty, but it works and it'll map cleanly to GPU backends when those are ready -- the reduction phase will just need a proper parallel reduction tree.
+The "Hybrid" pattern for RMSNorm and Softmax means the reduction phase runs in plain Java and only the normalization dispatches through HAT. This is a deliberate workaround for how HAT's dispatch model handles reductions -- see [Why hybrid kernels?](#why-hybrid-kernels) below for the full explanation.
 
 ## Verification pipelines
 
@@ -148,6 +148,16 @@ The daily driver was [Junie CLI](https://www.jetbrains.com/junie/) (JetBrains' c
 To be clear: the project is mine. The architecture decisions, design patterns, the kernel restoration strategy, the test structure, the PR workflow, the "let's try one kernel at a time and see what breaks" approach - that's all human judgment. The agents wrote code under direction, not the other way around. That said, coding with agents is genuinely pleasant. It's pair programming where your partner types faster than you and never gets bored of running integration tests.
 
 P.S. [Gemini Code Assist](https://cloud.google.com/products/gemini-code-assist) was also in the mix, reviewing my PRs for potential mistakes. A solid number of its suggestions were useful and caught real issues. A few of them broke the build, but that's what CI is for 😅
+
+## Findings
+
+### Why hybrid kernels?
+
+Both RMSNorm and Softmax have two phases: a reduction (sum of squares for RMSNorm, find-max-then-sum-exp for Softmax) that reads all elements to produce a single scalar, followed by a normalization that multiplies every element by that scalar.
+
+HAT's `@Reflect` dispatch model works by giving each kernel invocation a single index via `KernelContext` -- great for embarrassingly parallel work where each element is independent, but there's no built-in mechanism for cross-lane communication or shared accumulators. You can't have 2,048 kernel invocations all contributing to the same `float sum` without atomics or a reduction tree, and the Java sequential backend provides neither.
+
+So the reduction runs as a plain Java loop (which is fine -- it's a single pass over one vector), and then the normalization step dispatches through HAT where each element just gets multiplied by the precomputed scalar. It's pragmatic, not pretty, but it works and it'll map cleanly to GPU backends when those are ready -- the reduction phase will just need a proper parallel reduction tree.
 
 ---
 
