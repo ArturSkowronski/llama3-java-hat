@@ -1,7 +1,12 @@
 ### Llama 3 HAT Implementation
 
-[![CI](https://github.com/ArturSkowronski/llama3-java-hat/actions/workflows/ci.yml/badge.svg)](https://github.com/ArturSkowronski/llama3-java-hat/actions/workflows/ci.yml)
-[![E2E Integration Tests](https://github.com/ArturSkowronski/llama3-java-hat/actions/workflows/chat-test.yml/badge.svg)](https://github.com/ArturSkowronski/llama3-java-hat/actions/workflows/chat-test.yml)
+| | Workflow | Schedule |
+|---|---|---|
+| [![CI](https://github.com/ArturSkowronski/llama3-java-hat/actions/workflows/ci.yml/badge.svg)](https://github.com/ArturSkowronski/llama3-java-hat/actions/workflows/ci.yml) | Build + Unit Tests | Every push |
+| [![E2E Integration Tests](https://github.com/ArturSkowronski/llama3-java-hat/actions/workflows/chat-test.yml/badge.svg)](https://github.com/ArturSkowronski/llama3-java-hat/actions/workflows/chat-test.yml) | E2E Integration Tests (FP16 + HAT) | Manual |
+| [![Nightly E2E](https://github.com/ArturSkowronski/llama3-java-hat/actions/workflows/nightly.yml/badge.svg)](https://github.com/ArturSkowronski/llama3-java-hat/actions/workflows/nightly.yml) | Nightly E2E (Baseline + All-HAT) | Daily 2 AM UTC |
+| [![Weekly Full Matrix](https://github.com/ArturSkowronski/llama3-java-hat/actions/workflows/weekly-full-matrix.yml/badge.svg)](https://github.com/ArturSkowronski/llama3-java-hat/actions/workflows/weekly-full-matrix.yml) | Weekly Full Matrix (6 individual HAT kernels) | Sunday 3 AM UTC |
+
 ![Java](https://img.shields.io/badge/Java-26_(Babylon)-orange)
 ![HAT Kernels](https://img.shields.io/badge/HAT_Kernels-6%2F6_(100%25)-brightgreen)
 ![Model](https://img.shields.io/badge/Model-Llama_3.2_1B_Instruct_FP16-blue)
