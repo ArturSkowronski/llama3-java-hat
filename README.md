@@ -94,7 +94,7 @@ TINY_LLAMA_PATH=$(pwd)/tinyllama-1.1b-chat-v1.0.Q2_K.gguf ./gradlew integrationT
 
 **Full Llama 3.2 FP16 tests** (the real thing, ~6 minutes each):
 ```bash
-LLAMA_FP16_PATH=/path/to/Llama-3.2-1B-Instruct-f16.gguf ./gradlew integrationTest
+LLAMA_FP16_PATH=$(pwd)/Llama-3.2-1B-Instruct-f16.gguf ./gradlew integrationTest
 ```
 
 The E2E tests are split per kernel. There's a `ChatIntegrationTestWith{Kernel}HAT` for each of the six kernels individually, plus `ChatIntegrationTestWithAllHAT` that enables all six simultaneously. Each test runs the same prompt ("Tell a joke about programming") and validates the output isn't gibberish using heuristics for repeated characters, non-ASCII ratio, and character diversity. The expected output (if you're curious): "Why did the programmer quit his job? Because he didn't get arrays."
