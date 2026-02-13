@@ -1,20 +1,17 @@
-name: Chat Integration Test (Plain Java, no HAT)
+name: E2E Integration Tests (FP16 + HAT)
 
-# Manual-only: FP16 inference on GitHub runner CPU is too slow (>10 min for 32 tokens)
-# and Gradle buffers test output, causing GitHub Actions no-output timeout.
-# The test passes locally in ~6 minutes. Unit tests validate correctness on CI.
 on:
-  # push:
-  #   branches: [ main ]
-  #   paths-ignore:
-  #     - '**.md'
-  #     - 'docs/**'
-  # pull_request:
-  #   branches: [ main ]
-  #   paths-ignore:
-  #     - '**.md'
-  #     - 'docs/**'
   workflow_dispatch:
+    inputs:
+      test_scope:
+        description: 'Which tests to run'
+        required: true
+        default: 'all-hat'
+        type: choice
+        options:
+          - baseline-only
+          - all-hat
+          - full-matrix
 
 jobs:
   build-babylon:
@@ -97,7 +94,8 @@ jobs:
           include-hidden-files: true
           retention-days: 7
 
-  chat-test:
+  # Job 1: Plain Java baseline test
+  baseline-test:
     needs: build-babylon
     runs-on: ubuntu-latest
     timeout-minutes: 60
@@ -137,9 +135,9 @@ jobs:
         run: |
           export JAVA_HOME=$JAVA_BABYLON_ROOT/build/linux-x86_64-server-release/images/jdk
           export PATH=$JAVA_HOME/bin:$PATH
-          ./gradlew build
+          ./gradlew build -x test --console=plain
 
-      - name: Run Chat Integration Test
+      - name: Run Plain Java Baseline Test
         timeout-minutes: 30
         env:
           CI: "true"
@@ -147,4 +145,149 @@ jobs:
           export JAVA_HOME=$JAVA_BABYLON_ROOT/build/linux-x86_64-server-release/images/jdk
           export PATH=$JAVA_HOME/bin:$PATH
           export LLAMA_FP16_PATH=$(pwd)/Llama-3.2-1B-Instruct-f16.gguf
-          ./gradlew integrationTest
+          # --console=plain prevents Gradle output buffering that causes GitHub Actions no-output timeout
+          ./gradlew integrationTest --tests "ChatIntegrationTest" --console=plain
+
+      - name: Upload Baseline Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: results-baseline
+          path: |
+            build/reports/tests/integrationTest/
+            build/test-results/integrationTest/
+          retention-days: 7
+
+  # Job 2: All-HAT test (all 6 kernels enabled simultaneously)
+  all-hat-test:
+    needs: baseline-test
+    if: inputs.test_scope == 'all-hat' || inputs.test_scope == 'full-matrix'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout Project
+        uses: actions/checkout@v4
+
+      - name: Download Babylon Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: babylon-jdk-chat
+          path: babylon-jdk
+
+      - name: Setup Environment
+        run: |
+          JDK_PATH=babylon-jdk/build/linux-x86_64-server-release/images/jdk
+          chmod -R +x $JDK_PATH/bin/
+          find $JDK_PATH/lib -type f -name "jspawnhelper" -exec chmod +x {} \;
+          find $JDK_PATH/lib -type f -name "*.so" -exec chmod +x {} \;
+          echo "JAVA_BABYLON_ROOT=$(pwd)/babylon-jdk" >> $GITHUB_ENV
+          chmod +x gradlew
+
+      - name: Cache Llama 3.2 1B Model
+        id: cache-llama
+        uses: actions/cache@v4
+        with:
+          path: Llama-3.2-1B-Instruct-f16.gguf
+          key: llama-3.2-1b-instruct-f16-gguf
+
+      - name: Download Llama 3.2 1B Instruct FP16
+        if: steps.cache-llama.outputs.cache-hit != 'true'
+        run: |
+          chmod +x scripts/download_llama_fp16.sh
+          ./scripts/download_llama_fp16.sh
+
+      - name: Build Project
+        run: |
+          export JAVA_HOME=$JAVA_BABYLON_ROOT/build/linux-x86_64-server-release/images/jdk
+          export PATH=$JAVA_HOME/bin:$PATH
+          ./gradlew build -x test --console=plain
+
+      - name: Run All-HAT Integration Test (6/6 kernels)
+        timeout-minutes: 30
+        env:
+          CI: "true"
+        run: |
+          export JAVA_HOME=$JAVA_BABYLON_ROOT/build/linux-x86_64-server-release/images/jdk
+          export PATH=$JAVA_HOME/bin:$PATH
+          export LLAMA_FP16_PATH=$(pwd)/Llama-3.2-1B-Instruct-f16.gguf
+          echo "Running ALL 6 HAT kernels simultaneously: GEMV, RMSNorm, RoPE, SiLU, Softmax, Attention"
+          ./gradlew integrationTest --tests "ChatIntegrationTestWithAllHAT" --console=plain
+
+      - name: Upload All-HAT Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: results-all-hat
+          path: |
+            build/reports/tests/integrationTest/
+            build/test-results/integrationTest/
+          retention-days: 7
+
+  # Job 3: Individual HAT kernel matrix (full-matrix only)
+  individual-hat-tests:
+    needs: baseline-test
+    if: inputs.test_scope == 'full-matrix'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      matrix:
+        kernel: [SiLU, RoPE, Softmax, RMSNorm, Attention, GEMV]
+      fail-fast: false
+    steps:
+      - name: Checkout Project
+        uses: actions/checkout@v4
+
+      - name: Download Babylon Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: babylon-jdk-chat
+          path: babylon-jdk
+
+      - name: Setup Environment
+        run: |
+          JDK_PATH=babylon-jdk/build/linux-x86_64-server-release/images/jdk
+          chmod -R +x $JDK_PATH/bin/
+          find $JDK_PATH/lib -type f -name "jspawnhelper" -exec chmod +x {} \;
+          find $JDK_PATH/lib -type f -name "*.so" -exec chmod +x {} \;
+          echo "JAVA_BABYLON_ROOT=$(pwd)/babylon-jdk" >> $GITHUB_ENV
+          chmod +x gradlew
+
+      - name: Cache Llama 3.2 1B Model
+        id: cache-llama
+        uses: actions/cache@v4
+        with:
+          path: Llama-3.2-1B-Instruct-f16.gguf
+          key: llama-3.2-1b-instruct-f16-gguf
+
+      - name: Download Llama 3.2 1B Instruct FP16
+        if: steps.cache-llama.outputs.cache-hit != 'true'
+        run: |
+          chmod +x scripts/download_llama_fp16.sh
+          ./scripts/download_llama_fp16.sh
+
+      - name: Build Project
+        run: |
+          export JAVA_HOME=$JAVA_BABYLON_ROOT/build/linux-x86_64-server-release/images/jdk
+          export PATH=$JAVA_HOME/bin:$PATH
+          ./gradlew build -x test --console=plain
+
+      - name: Run ${{ matrix.kernel }} HAT Integration Test
+        timeout-minutes: 30
+        env:
+          CI: "true"
+        run: |
+          export JAVA_HOME=$JAVA_BABYLON_ROOT/build/linux-x86_64-server-release/images/jdk
+          export PATH=$JAVA_HOME/bin:$PATH
+          export LLAMA_FP16_PATH=$(pwd)/Llama-3.2-1B-Instruct-f16.gguf
+          echo "Running ${{ matrix.kernel }} HAT kernel test"
+          ./gradlew integrationTest --tests "ChatIntegrationTestWith${{ matrix.kernel }}HAT" --console=plain
+
+      - name: Upload ${{ matrix.kernel }} Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: results-${{ matrix.kernel }}-hat
+          path: |
+            build/reports/tests/integrationTest/
+            build/test-results/integrationTest/
+          retention-days: 7
