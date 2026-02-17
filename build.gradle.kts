@@ -22,6 +22,9 @@ dependencies {
     implementation(files("$babylonHome/hat/build/hat-core-1.0.jar"))
     implementation(files("$babylonHome/hat/build/hat-optkl-1.0.jar"))
     implementation(files("$babylonHome/hat/build/hat-backend-java-seq-1.0.jar"))
+    implementation(files("$babylonHome/hat/build/hat-backend-java-mt-1.0.jar"))
+    implementation(files("$babylonHome/hat/build/hat-backend-ffi-opencl-1.0.jar"))
+    implementation(files("$babylonHome/hat/build/hat-backend-ffi-shared-1.0.jar"))
 
     testImplementation("org.junit.jupiter:junit-jupiter:6.0.0")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
@@ -74,6 +77,7 @@ application {
         "--enable-preview",
         "--add-modules=jdk.incubator.code",
         "--add-exports=java.base/jdk.internal.vm.annotation=ALL-UNNAMED",
+        "--enable-native-access=ALL-UNNAMED",
         "-Djava.library.path=$babylonHome/hat/build"
     )
 }

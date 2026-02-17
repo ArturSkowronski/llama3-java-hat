@@ -43,13 +43,21 @@ public class LlamaInference {
     }
 
     /**
-     * Creates a LlamaInference instance with a custom kernel factory.
+     * Creates a LlamaInference instance with a custom kernel factory on the default backend.
+     */
+    public LlamaInference(Path ggufPath, IKernelFactory factory) throws IOException {
+        this(ggufPath, factory, BackendType.JAVA_SEQ);
+    }
+
+    /**
+     * Creates a LlamaInference instance with a custom kernel factory and backend.
      *
      * @param ggufPath path to GGUF model file
      * @param factory kernel factory for creating kernel implementations
+     * @param backendType HAT backend to use for acceleration
      */
-    public LlamaInference(Path ggufPath, IKernelFactory factory) throws IOException {
-        this.model = new LlamaModel(ggufPath);
+    public LlamaInference(Path ggufPath, IKernelFactory factory, BackendType backendType) throws IOException {
+        this.model = new LlamaModel(ggufPath, backendType);
         Accelerator acc = model.getAccelerator();
 
         // Load global weights

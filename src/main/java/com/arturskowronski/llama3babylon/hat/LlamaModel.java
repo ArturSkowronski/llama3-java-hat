@@ -40,18 +40,30 @@ public class LlamaModel {
     private final Map<String, F32Array> tensors = new HashMap<>();
 
     public LlamaModel(Path ggufPath) throws IOException {
-        this(ggufPath, true);
+        this(ggufPath, BackendType.JAVA_SEQ, true);
+    }
+
+    public LlamaModel(Path ggufPath, BackendType backendType) throws IOException {
+        this(ggufPath, backendType, true);
     }
 
     /**
-     * Constructor with optional strict validation.
-     * @param ggufPath path to GGUF file
-     * @param strictValidation if true, validates tensor count >= 100 (for real models)
+     * Package-private constructor for unit tests (skips strict validation).
      */
     LlamaModel(Path ggufPath, boolean strictValidation) throws IOException {
+        this(ggufPath, BackendType.JAVA_SEQ, strictValidation);
+    }
+
+    /**
+     * Constructor with backend selection and optional strict validation.
+     * @param ggufPath path to GGUF file
+     * @param backendType HAT backend to use for acceleration
+     * @param strictValidation if true, validates tensor count >= 100 (for real models)
+     */
+    LlamaModel(Path ggufPath, BackendType backendType, boolean strictValidation) throws IOException {
         this.modelPath = ggufPath;
         this.metadata = GGUFReader.readMetadata(ggufPath);
-        this.accelerator = new Accelerator(MethodHandles.lookup());
+        this.accelerator = new Accelerator(MethodHandles.lookup(), backendType.predicate());
         validateModel(strictValidation);
     }
 
