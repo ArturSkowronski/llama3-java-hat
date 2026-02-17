@@ -1,7 +1,8 @@
-package com.arturskowronski.llama3babylon.hat.integration;
+package com.arturskowronski.llama3babylon.hat.integration.chat;
 
 import com.arturskowronski.llama3babylon.hat.BackendType;
 import com.arturskowronski.llama3babylon.hat.LlamaInference;
+import com.arturskowronski.llama3babylon.hat.utils.ResponseAssertions;
 import com.arturskowronski.llama3babylon.hat.kernels.HybridKernelFactory;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
@@ -13,16 +14,16 @@ import java.nio.file.Paths;
 import java.util.Set;
 
 /**
- * Integration test running all 6 HAT kernels on the Java Multi-Threaded backend.
- * Validates that backend switching works correctly before attempting GPU (OpenCL).
+ * Integration test running all 6 HAT kernels on the OpenCL GPU backend.
+ * The same kernel code that ran on the Java Sequential backend is now dispatched to GPU via OpenCL FFI.
  */
 @Tag("integration")
 @Tag("hat-gpu")
-public class ChatIntegrationTestWithJavaMT {
+public class ChatIntegrationTestWithOpenCL {
 
     @Test
     @EnabledIfEnvironmentVariable(named = "LLAMA_FP16_PATH", matches = ".*")
-    public void testChatWithAllHATKernelsOnJavaMT() throws IOException {
+    public void testChatWithAllHATKernelsOnOpenCL() throws IOException {
         Path modelPath = Paths.get(System.getenv("LLAMA_FP16_PATH"));
 
         HybridKernelFactory factory = new HybridKernelFactory(
@@ -36,7 +37,7 @@ public class ChatIntegrationTestWithJavaMT {
             )
         );
 
-        LlamaInference inference = new LlamaInference(modelPath, factory, BackendType.JAVA_MT);
+        LlamaInference inference = new LlamaInference(modelPath, factory, BackendType.OPENCL);
 
         int maxTokens = System.getenv("CI") != null ? 32 : 128;
         String response = inference.chat(
@@ -45,9 +46,9 @@ public class ChatIntegrationTestWithJavaMT {
                 maxTokens
         );
 
-        System.out.println("=== Model Response (ALL HAT KERNELS + JAVA MT BACKEND) ===");
+        System.out.println("=== Model Response (ALL HAT KERNELS + OPENCL GPU BACKEND) ===");
         System.out.println(response);
-        System.out.println("===========================================================");
+        System.out.println("==============================================================");
 
         ResponseAssertions.assertValidResponse(response);
     }

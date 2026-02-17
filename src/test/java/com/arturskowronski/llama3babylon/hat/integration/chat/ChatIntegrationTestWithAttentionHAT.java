@@ -1,6 +1,7 @@
-package com.arturskowronski.llama3babylon.hat.integration;
+package com.arturskowronski.llama3babylon.hat.integration.chat;
 
 import com.arturskowronski.llama3babylon.hat.LlamaInference;
+import com.arturskowronski.llama3babylon.hat.utils.ResponseAssertions;
 import com.arturskowronski.llama3babylon.hat.kernels.HybridKernelFactory;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;

@@ -1,4 +1,4 @@
-package com.arturskowronski.llama3babylon.hat.integration;
+package com.arturskowronski.llama3babylon.hat.utils;
 
 import java.util.regex.Pattern;
 

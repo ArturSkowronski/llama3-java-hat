@@ -1,6 +1,7 @@
-package com.arturskowronski.llama3babylon.hat.integration;
+package com.arturskowronski.llama3babylon.hat.integration.chat;
 
 import com.arturskowronski.llama3babylon.hat.LlamaInference;
+import com.arturskowronski.llama3babylon.hat.utils.ResponseAssertions;
 import com.arturskowronski.llama3babylon.hat.kernels.HybridKernelFactory;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
@@ -23,9 +24,9 @@ public class ChatIntegrationTestWithAllHAT {
     @Test
     @EnabledIfEnvironmentVariable(named = "LLAMA_FP16_PATH", matches = ".*")
     public void testChatWithAllHATKernels() throws IOException {
-        Path modelPath = Paths.get(System.getenv("LLAMA_FP16_PATH"));
+        var modelPath = Paths.get(System.getenv("LLAMA_FP16_PATH"));
 
-        HybridKernelFactory factory = new HybridKernelFactory(
+        var factory = new HybridKernelFactory(
             Set.of(
                 HybridKernelFactory.KernelType.GEMV,
                 HybridKernelFactory.KernelType.RMSNORM,
@@ -36,7 +37,7 @@ public class ChatIntegrationTestWithAllHAT {
             )
         );
 
-        LlamaInference inference = new LlamaInference(modelPath, factory);
+        var inference = new LlamaInference(modelPath, factory);
 
         int maxTokens = System.getenv("CI") != null ? 32 : 128;
         String response = inference.chat(

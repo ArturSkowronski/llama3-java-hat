@@ -31,7 +31,9 @@ dependencies {
 }
 
 tasks.test {
-    useJUnitPlatform()
+    useJUnitPlatform {
+        excludeTags("integration")
+    }
     jvmArgs(application.applicationDefaultJvmArgs)
 }
 
