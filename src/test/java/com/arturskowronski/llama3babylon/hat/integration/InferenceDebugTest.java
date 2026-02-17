@@ -12,6 +12,7 @@ import java.util.Arrays;
 import java.util.List;
 
 @Tag("integration")
+@Tag("plain-java")
 public class InferenceDebugTest {
 
     @Test

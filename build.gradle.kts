@@ -35,27 +35,34 @@ tasks.test {
     jvmArgs(application.applicationDefaultJvmArgs)
 }
 
-tasks.register<Test>("integrationTest") {
-    description = "Runs integration tests."
-    group = "verification"
-    
-    testClassesDirs = sourceSets["test"].output.classesDirs
-    classpath = sourceSets["test"].runtimeClasspath
+fun registerIntegrationTest(name: String, description: String, vararg tags: String) =
+    tasks.register<Test>(name) {
+        this.description = description
+        group = "verification"
 
-    useJUnitPlatform {
-        includeTags("integration")
+        testClassesDirs = sourceSets["test"].output.classesDirs
+        classpath = sourceSets["test"].runtimeClasspath
+
+        useJUnitPlatform {
+            tags.forEach { includeTags(it) }
+        }
+        jvmArgs(application.applicationDefaultJvmArgs)
+
+        System.getenv("TINY_LLAMA_PATH")?.let { environment("TINY_LLAMA_PATH", it) }
+        System.getenv("LLAMA_FP16_PATH")?.let { environment("LLAMA_FP16_PATH", it) }
     }
-    jvmArgs(application.applicationDefaultJvmArgs)
-    
-    val tinyLlamaPath = System.getenv("TINY_LLAMA_PATH")
-    if (tinyLlamaPath != null) {
-        environment("TINY_LLAMA_PATH", tinyLlamaPath)
-    }
-    val llamaFp16Path = System.getenv("LLAMA_FP16_PATH")
-    if (llamaFp16Path != null) {
-        environment("LLAMA_FP16_PATH", llamaFp16Path)
-    }
-}
+
+registerIntegrationTest("integrationTest",
+    "Runs all integration tests.", "integration")
+
+registerIntegrationTest("plainJavaIntegrationTest",
+    "Runs plain Java integration tests (no HAT).", "plain-java")
+
+registerIntegrationTest("hatSequentialIntegrationTest",
+    "Runs HAT Sequential backend integration tests.", "hat-sequential")
+
+registerIntegrationTest("hatGpuIntegrationTest",
+    "Runs HAT GPU (OpenCL/JavaMT) integration tests.", "hat-gpu")
 
 java {
     toolchain {

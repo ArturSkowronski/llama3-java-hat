@@ -113,7 +113,7 @@ jobs:
           export TINY_LLAMA_PATH=$(pwd)/tinyllama-1.1b-chat-v1.0.Q2_K.gguf
           ./gradlew build --console=plain
           ./gradlew test --console=plain
-          ./gradlew integrationTest --console=plain
+          ./gradlew plainJavaIntegrationTest --console=plain
 
   all-hat-test:
     needs: build-babylon
@@ -157,7 +157,7 @@ jobs:
           export PATH=$JAVA_HOME/bin:$PATH
           ./gradlew build -x test --console=plain
 
-      - name: Run Baseline + All-HAT Integration Tests
+      - name: Run Plain Java Baseline
         timeout-minutes: 30
         env:
           CI: "true"
@@ -165,10 +165,17 @@ jobs:
           export JAVA_HOME=$JAVA_BABYLON_ROOT/build/linux-x86_64-server-release/images/jdk
           export PATH=$JAVA_HOME/bin:$PATH
           export LLAMA_FP16_PATH=$(pwd)/Llama-3.2-1B-Instruct-f16.gguf
-          echo "=== Running Plain Java Baseline ==="
-          ./gradlew integrationTest --tests "ChatIntegrationTest" --console=plain
-          echo "=== Running All-HAT Test (6/6 kernels) ==="
-          ./gradlew integrationTest --tests "ChatIntegrationTestWithAllHAT" --console=plain
+          ./gradlew plainJavaIntegrationTest --console=plain
+
+      - name: Run HAT Sequential Tests
+        timeout-minutes: 30
+        env:
+          CI: "true"
+        run: |
+          export JAVA_HOME=$JAVA_BABYLON_ROOT/build/linux-x86_64-server-release/images/jdk
+          export PATH=$JAVA_HOME/bin:$PATH
+          export LLAMA_FP16_PATH=$(pwd)/Llama-3.2-1B-Instruct-f16.gguf
+          ./gradlew hatSequentialIntegrationTest --console=plain
 
       - name: Upload Results
         if: always()
