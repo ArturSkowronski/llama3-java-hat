@@ -49,6 +49,8 @@ fun registerIntegrationTest(name: String, description: String, vararg tags: Stri
             tags.forEach { includeTags(it) }
         }
         jvmArgs(application.applicationDefaultJvmArgs)
+        jvmArgs("-Xmx5g")
+        forkEvery = 1 // Fork a new JVM per test class to prevent OOM from repeated model loads
 
         // Forward test output to Gradle console so CI sees activity
         // (prevents GitHub Actions no-output timeout during long inference)
