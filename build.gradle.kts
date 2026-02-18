@@ -66,6 +66,9 @@ registerIntegrationTest("hatSequentialIntegrationTest",
 registerIntegrationTest("hatGpuIntegrationTest",
     "Runs HAT GPU (OpenCL/JavaMT) integration tests.", "hat-gpu")
 
+registerIntegrationTest("benchmark",
+    "Runs inference benchmark across all backends.", "benchmark")
+
 java {
     toolchain {
         languageVersion.set(JavaLanguageVersion.of(26))
