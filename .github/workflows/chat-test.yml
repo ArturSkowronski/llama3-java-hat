@@ -7,10 +7,6 @@ on:
       - '**.md'
       - 'docs/**'
   workflow_dispatch:
-
-concurrency:
-  group: chat-test-${{ github.head_ref || github.ref }}
-  cancel-in-progress: false
     inputs:
       test_scope:
         description: 'Which tests to run'
@@ -21,6 +17,10 @@ concurrency:
           - baseline-only
           - all-hat
           - full-matrix
+
+concurrency:
+  group: chat-test-${{ github.head_ref || github.ref }}
+  cancel-in-progress: false
 
 jobs:
   build-babylon:
