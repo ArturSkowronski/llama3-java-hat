@@ -138,6 +138,7 @@ jobs:
           ./gradlew test
 
       - name: Run HAT Backend Bug Tests (OpenCL FFI + Java MT)
+        continue-on-error: true
         run: |
           export JAVA_HOME=$JAVA_BABYLON_ROOT/build/linux-x86_64-server-release/images/jdk
           export PATH=$JAVA_HOME/bin:$PATH

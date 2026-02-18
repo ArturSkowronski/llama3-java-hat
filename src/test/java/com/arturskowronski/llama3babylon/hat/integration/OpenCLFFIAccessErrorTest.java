@@ -67,7 +67,8 @@ public class OpenCLFFIAccessErrorTest {
         Backend openclBackend;
         try {
             openclBackend = Backend.getBackend(openclPredicate);
-        } catch (Exception e) {
+        } catch (Throwable e) {
+            // ServiceConfigurationError (extends Error) when OpenCL drivers are missing
             System.out.println("OpenCL backend not available, skipping: " + e.getMessage());
             return;
         }
