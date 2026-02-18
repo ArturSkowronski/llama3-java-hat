@@ -44,24 +44,30 @@ The "Hybrid" pattern for RMSNorm and Softmax means the reduction phase runs in p
 
 ## Verification pipelines
 
-This project depends on an upstream JDK that's under active development (the Babylon `code-reflection` branch), a HAT runtime that's pre-release, and kernel dispatch semantics that could change without warning. That combination means "it worked on my machine last Tuesday" isn't enough (I learned it the other way, nearly submiting bug report for issue that was already resolved at upstream). The CI strategy is built around one question: if something breaks, can we tell whether it's our code, HAT, or upstream Babylon?
-
-Every workflow starts by building the Babylon JDK and HAT from source against the latest `code-reflection` HEAD. This is intentional - I want to catch upstream regressions (and benefits!) early, in async way.
+This project tracks upstream Babylon closely, so CI is split by purpose and cadence:
 
 | | Workflow | Schedule |
 |---|---|---|
-| [![CI](https://github.com/ArturSkowronski/llama3-java-hat/actions/workflows/ci.yml/badge.svg)](https://github.com/ArturSkowronski/llama3-java-hat/actions/workflows/ci.yml) | Build + Unit Tests + TinyLlama | Every push |
-| [![E2E](https://github.com/ArturSkowronski/llama3-java-hat/actions/workflows/chat-test.yml/badge.svg)](https://github.com/ArturSkowronski/llama3-java-hat/actions/workflows/chat-test.yml) | E2E Integration Tests (FP16 + HAT) | Every PR + Manual |
-| [![Nightly](https://github.com/ArturSkowronski/llama3-java-hat/actions/workflows/nightly.yml/badge.svg)](https://github.com/ArturSkowronski/llama3-java-hat/actions/workflows/nightly.yml) | Nightly E2E (Baseline + All-HAT) | Daily 2 AM UTC |
-| [![Weekly](https://github.com/ArturSkowronski/llama3-java-hat/actions/workflows/weekly-full-matrix.yml/badge.svg)](https://github.com/ArturSkowronski/llama3-java-hat/actions/workflows/weekly-full-matrix.yml) | Weekly Full Matrix (6 individual HAT kernels) | Sunday 3 AM UTC |
+| [![CI](https://github.com/ArturSkowronski/llama3-java-hat/actions/workflows/ci.yml/badge.svg)](https://github.com/ArturSkowronski/llama3-java-hat/actions/workflows/ci.yml) | Build + unit tests + plain integration smoke | Every push / PR |
+| [![E2E](https://github.com/ArturSkowronski/llama3-java-hat/actions/workflows/chat-test.yml/badge.svg)](https://github.com/ArturSkowronski/llama3-java-hat/actions/workflows/chat-test.yml) | Manual/PR chat-focused integration scenarios | PR + manual |
+| [![Nightly](https://github.com/ArturSkowronski/llama3-java-hat/actions/workflows/nightly.yml/badge.svg)](https://github.com/ArturSkowronski/llama3-java-hat/actions/workflows/nightly.yml) | Daily full integration + daily benchmarks | Daily 2 AM UTC |
+| [![Weekly](https://github.com/ArturSkowronski/llama3-java-hat/actions/workflows/weekly-full-matrix.yml/badge.svg)](https://github.com/ArturSkowronski/llama3-java-hat/actions/workflows/weekly-full-matrix.yml) | Weekly baseline + benchmarks + regression + backend integration | Sunday 3 AM UTC |
 
-**CI (every push)** - The fast feedback loop. Builds the Babylon JDK, compiles the project, runs unit tests, then downloads TinyLlama (a small quantized model) and runs integration tests against it. This validates that the GGUF reader, tokenizer, and basic inference pipeline haven't regressed. It doesn't touch the real Llama 3.2 FP16 model or any HAT dispatch -- the point is to catch compilation failures and logic bugs. Skips runs on docs-only changes because rebuilding an entire JDK to validate a typo in the README felt excessive 😉.
+### Tag and task model
 
-**E2E Integration Tests (every PR + manual)** - Runs the plain Java baseline test (`ChatIntegrationTest`) against the real Llama 3.2 1B Instruct FP16 model (2.5 GB, cached across runs) on every PR to main. This is the pre-merge gate - if the baseline inference is broken, you'll know before merging. Skips docs-only changes. On manual dispatch, you get tiered scopes: `baseline-only`, `all-hat` (adds the all-six-kernels-simultaneously test), and `full-matrix` (runs each of the six HAT kernels in isolation). The HAT tiers are manual-only because a full matrix run takes ~30 minutes of compute and you don't always need that level of granularity for a PR - most of the time, confirming baseline correctness is the merge gate, and HAT validation can wait for nightly.
+- `plain-integration`: plain Java integration tests
+- `hat-integration`: HAT backend integration tests (JavaMT/OpenCL + backend dispatch coverage)
+- `benchmark`: benchmark tests
+- `regression`: regression-only tests (kept out of daily runs)
 
-**Nightly E2E (daily, 2 AM UTC)** - The upstream drift detector. Runs two jobs in parallel: unit tests with TinyLlama (same as CI, catching basic regressions) and the real FP16 model tests (plain Java baseline followed by all-HAT with 6/6 kernels). The rationale is simple: Babylon's `code-reflection` branch moves fast, and HAT's runtime semantics are still being stabilized. A nightly run against the latest upstream HEAD means we find out within 24 hours if a Babylon commit broke something, rather than discovering it during a weekend coding session. If the baseline passes but all-HAT fails, that points to a HAT runtime change. If both fail, it's likely an upstream JDK or compilation issue.
+Main Gradle tasks:
 
-**Weekly Full Matrix (Sunday, 3 AM UTC)** - The exhaustive verification. This is the only workflow that tests each HAT kernel individually in isolation, running all six as separate matrix jobs (`ChatIntegrationTestWith{SiLU,RoPE,Softmax,RMSNorm,Attention,GEMV}HAT`) with `fail-fast: false` so every kernel gets its result regardless of whether others fail. After all individual tests and the baseline complete, it runs the all-HAT combined test as a final gate. The reason for running individual kernels weekly (and not daily) is that it's expensive - 8 separate E2E inference runs against a 2.5 GB model - but it answers a question the other pipelines can't: if the all-HAT test fails, *which specific kernel* broke? During initial development, this isolation was critical for debugging (the kernels were restored one by one precisely because combined failures were impossible to diagnose). Now it serves as a regression safety net.
+- `test`: unit-only
+- `integrationTest`: all integration (`plain-integration` + `hat-integration`)
+- `plainIntegrationTest`: plain integration subset
+- `hatIntegrationTest`: HAT integration subset
+- `benchmarkKernelAll`: per-kernel benchmark suite
+- `regressionTest`: regression-only
 
 ## Building
 
@@ -90,26 +96,41 @@ Then:
 
 ## Tests
 
-Unit tests run without any model files:
+Unit tests (no model needed):
 
 ```bash
 ./gradlew test
 ```
 
-Integration tests need models. There are two tiers:
+Integration tests (requires model):
 
-**TinyLlama tests of GGUF format** (lightweight, fast, good for CI):
-```bash
-./scripts/download_tinyllama.sh
-TINY_LLAMA_PATH=$(pwd)/tinyllama-1.1b-chat-v1.0.Q2_K.gguf ./gradlew integrationTest
-```
-
-**Full Llama 3.2 FP16 tests** (the real thing, ~6 minutes each):
 ```bash
 LLAMA_FP16_PATH=$(pwd)/Llama-3.2-1B-Instruct-f16.gguf ./gradlew integrationTest
 ```
 
-The E2E tests are split per kernel. There's a `ChatIntegrationTestWith{Kernel}HAT` for each of the six kernels individually, plus `ChatIntegrationTestWithAllHAT` that enables all six simultaneously. Each test runs the same prompt ("Tell a joke about programming") and validates the output isn't gibberish using heuristics for repeated characters, non-ASCII ratio, and character diversity. The expected output (if you're curious): "Why did the programmer quit his job? Because he didn't get arrays."
+Run only plain integration:
+
+```bash
+LLAMA_FP16_PATH=$(pwd)/Llama-3.2-1B-Instruct-f16.gguf ./gradlew plainIntegrationTest
+```
+
+Run only HAT/backend integration:
+
+```bash
+LLAMA_FP16_PATH=$(pwd)/Llama-3.2-1B-Instruct-f16.gguf ./gradlew hatIntegrationTest
+```
+
+Benchmarks:
+
+```bash
+LLAMA_FP16_PATH=$(pwd)/Llama-3.2-1B-Instruct-f16.gguf ./gradlew benchmarkKernelAll
+```
+
+Regression-only:
+
+```bash
+LLAMA_FP16_PATH=$(pwd)/Llama-3.2-1B-Instruct-f16.gguf ./gradlew regressionTest
+```
 
 ## Current limitations
 
