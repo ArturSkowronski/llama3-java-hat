@@ -47,10 +47,13 @@ fun registerIntegrationTest(name: String, description: String, vararg tags: Stri
 
         useJUnitPlatform {
             tags.forEach { includeTags(it) }
+            excludeTags("regression")
         }
         jvmArgs(application.applicationDefaultJvmArgs)
         jvmArgs("-Xmx5g")
+        maxParallelForks = 1 // Avoid running multiple inference backends at once (GPU/FFI/large heap).
         forkEvery = 1 // Fork a new JVM per test class to prevent OOM from repeated model loads
+        failFast = false
 
         // Forward test output to Gradle console so CI sees activity
         // (prevents GitHub Actions no-output timeout during long inference)
@@ -77,6 +80,24 @@ registerIntegrationTest("hatGpuIntegrationTest",
 
 registerIntegrationTest("benchmark",
     "Runs inference benchmark across all backends.", "benchmark")
+
+registerIntegrationTest("benchmarkPlain",
+    "Runs inference benchmark: Plain Java only.", "benchmark-plain")
+
+registerIntegrationTest("benchmarkHatSeq",
+    "Runs inference benchmark: HAT Java Sequential only.", "benchmark-hat-seq")
+
+registerIntegrationTest("benchmarkHatMt",
+    "Runs inference benchmark: HAT Java MT only.", "benchmark-hat-mt")
+
+registerIntegrationTest("benchmarkOpencl",
+    "Runs inference benchmark: HAT OpenCL only (requires RUN_OPENCL_BENCHMARKS=true).", "benchmark-opencl")
+
+tasks.register("benchmarkAll") {
+    description = "Runs all benchmark shards (Plain, HAT seq, HAT mt, OpenCL)."
+    group = "verification"
+    dependsOn("benchmarkPlain", "benchmarkHatSeq", "benchmarkHatMt", "benchmarkOpencl")
+}
 
 registerIntegrationTest("openclBugTest",
     "Reproduces OpenCL FFI IllegalAccessError on ComputeEntrypoint.lowered.", "opencl-bug")

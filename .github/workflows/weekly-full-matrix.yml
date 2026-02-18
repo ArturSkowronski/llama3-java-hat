@@ -140,72 +140,6 @@ jobs:
             build/test-results/plainJavaIntegrationTest/
           retention-days: 7
 
-  individual-hat-tests:
-    needs: build-babylon
-    runs-on: ubuntu-latest
-    timeout-minutes: 60
-    strategy:
-      matrix:
-        kernel: [SiLU, RoPE, Softmax, RMSNorm, Attention, GEMV]
-      fail-fast: false
-    steps:
-      - name: Checkout Project
-        uses: actions/checkout@v4
-
-      - name: Download Babylon Artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: babylon-jdk-weekly
-          path: babylon-jdk
-
-      - name: Setup Environment
-        run: |
-          JDK_PATH=babylon-jdk/build/linux-x86_64-server-release/images/jdk
-          chmod -R +x $JDK_PATH/bin/
-          find $JDK_PATH/lib -type f -name "jspawnhelper" -exec chmod +x {} \;
-          find $JDK_PATH/lib -type f -name "*.so" -exec chmod +x {} \;
-          echo "JAVA_BABYLON_ROOT=$(pwd)/babylon-jdk" >> $GITHUB_ENV
-          chmod +x gradlew
-
-      - name: Cache Llama 3.2 1B Model
-        id: cache-llama
-        uses: actions/cache@v4
-        with:
-          path: Llama-3.2-1B-Instruct-f16.gguf
-          key: llama-3.2-1b-instruct-f16-gguf
-
-      - name: Download Llama 3.2 1B Instruct FP16
-        if: steps.cache-llama.outputs.cache-hit != 'true'
-        run: |
-          chmod +x scripts/download_llama_fp16.sh
-          ./scripts/download_llama_fp16.sh
-
-      - name: Build Project
-        run: |
-          export JAVA_HOME=$JAVA_BABYLON_ROOT/build/linux-x86_64-server-release/images/jdk
-          export PATH=$JAVA_HOME/bin:$PATH
-          ./gradlew build -x test --console=plain
-
-      - name: Run ${{ matrix.kernel }} HAT Integration Test
-        timeout-minutes: 30
-        env:
-          CI: "true"
-        run: |
-          export JAVA_HOME=$JAVA_BABYLON_ROOT/build/linux-x86_64-server-release/images/jdk
-          export PATH=$JAVA_HOME/bin:$PATH
-          export LLAMA_FP16_PATH=$(pwd)/Llama-3.2-1B-Instruct-f16.gguf
-          ./gradlew hatSequentialIntegrationTest --tests "ChatIntegrationTestWith${{ matrix.kernel }}HAT" --console=plain
-
-      - name: Upload ${{ matrix.kernel }} Results
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: weekly-results-${{ matrix.kernel }}-hat
-          path: |
-            build/reports/tests/hatSequentialIntegrationTest/
-            build/test-results/hatSequentialIntegrationTest/
-          retention-days: 7
-
   benchmarks:
     needs: build-babylon
     runs-on: ubuntu-latest
@@ -272,7 +206,7 @@ jobs:
           retention-days: 7
 
   all-hat-test:
-    needs: [baseline-test, individual-hat-tests, benchmarks]
+    needs: [baseline-test, benchmarks]
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:

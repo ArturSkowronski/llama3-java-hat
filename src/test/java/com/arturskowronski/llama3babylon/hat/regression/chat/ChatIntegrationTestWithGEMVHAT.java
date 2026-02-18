@@ -1,4 +1,4 @@
-package com.arturskowronski.llama3babylon.hat.integration.chat;
+package com.arturskowronski.llama3babylon.hat.regression.chat;
 
 import com.arturskowronski.llama3babylon.hat.LlamaInference;
 import com.arturskowronski.llama3babylon.hat.utils.ResponseAssertions;
@@ -13,20 +13,21 @@ import java.nio.file.Paths;
 import java.util.Set;
 
 /**
- * Integration test for SiLU kernel using HAT @Reflect dispatch in real 16-layer inference.
- * Enables ONLY SiLU for HAT dispatch while keeping all other kernels in plain Java mode.
+ * Integration test for GEMV kernel using HAT @Reflect dispatch in real 16-layer inference.
+ * Enables ONLY GEMV for HAT dispatch. Most intensive kernel: ~113 GEMV operations per token.
  */
 @Tag("integration")
+@Tag("regression")
 @Tag("hat-sequential")
-public class ChatIntegrationTestWithSiLUHAT {
+public class ChatIntegrationTestWithGEMVHAT {
 
     @Test
     @EnabledIfEnvironmentVariable(named = "LLAMA_FP16_PATH", matches = ".*")
-    public void testChatWithSiLUHAT() throws IOException {
+    public void testChatWithGEMVHAT() throws IOException {
         Path modelPath = Paths.get(System.getenv("LLAMA_FP16_PATH"));
 
         HybridKernelFactory factory = new HybridKernelFactory(
-            Set.of(HybridKernelFactory.KernelType.SILU)
+            Set.of(HybridKernelFactory.KernelType.GEMV)
         );
 
         LlamaInference inference = new LlamaInference(modelPath, factory);
@@ -38,7 +39,7 @@ public class ChatIntegrationTestWithSiLUHAT {
                 maxTokens
         );
 
-        System.out.println("=== Model Response (SiLU HAT) ===");
+        System.out.println("=== Model Response (GEMV HAT) ===");
         System.out.println(response);
         System.out.println("==================================");
 
