@@ -137,6 +137,12 @@ jobs:
           ./gradlew build
           ./gradlew test
 
+      - name: Run HAT Backend Bug Tests (OpenCL FFI + Java MT)
+        run: |
+          export JAVA_HOME=$JAVA_BABYLON_ROOT/build/linux-x86_64-server-release/images/jdk
+          export PATH=$JAVA_HOME/bin:$PATH
+          ./gradlew openclBugTest
+
       - name: Download TinyLlama
         run: |
           chmod +x scripts/download_tinyllama.sh
