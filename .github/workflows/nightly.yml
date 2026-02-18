@@ -167,17 +167,19 @@ jobs:
           export LLAMA_FP16_PATH=$(pwd)/Llama-3.2-1B-Instruct-f16.gguf
           ./gradlew plainJavaIntegrationTest --console=plain
 
-      - name: Run HAT Sequential Tests
-        # This suite can legitimately take longer than 30 minutes on GitHub-hosted runners.
-        # Keep it below the job timeout to still fail deterministically if it hangs.
-        timeout-minutes: 55
+      - name: Run HAT Sequential Smoke Test
+        # Nightly runs a smoke subset for fast signal.
+        # Full HAT sequential coverage remains available in dedicated/full workflows.
+        timeout-minutes: 25
         env:
           CI: "true"
         run: |
           export JAVA_HOME=$JAVA_BABYLON_ROOT/build/linux-x86_64-server-release/images/jdk
           export PATH=$JAVA_HOME/bin:$PATH
           export LLAMA_FP16_PATH=$(pwd)/Llama-3.2-1B-Instruct-f16.gguf
-          ./gradlew hatSequentialIntegrationTest --console=plain
+          ./gradlew hatSequentialIntegrationTest \
+            --tests "com.arturskowronski.llama3babylon.hat.integration.chat.ChatIntegrationTestWithAllHAT" \
+            --console=plain
 
       - name: Upload Results
         if: always()
