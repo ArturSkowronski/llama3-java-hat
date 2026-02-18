@@ -12,16 +12,20 @@ import java.nio.file.StandardOpenOption;
 import java.time.Instant;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 final class InferenceBenchmarkSupport {
     private InferenceBenchmarkSupport() {}
 
     static final String SYSTEM_PROMPT = "You are a helpful assistant.";
-    static final String USER_PROMPT = "Tell a joke about programming";
-    static final int MAX_TOKENS = 32;
+    static final String USER_PROMPT = System.getenv().getOrDefault("BENCHMARK_USER_PROMPT", "Say hi");
+    // Keep benchmarks fast by default; override with BENCHMARK_MAX_TOKENS for deeper runs.
+    static final int MAX_TOKENS = parsePositiveInt(System.getenv("BENCHMARK_MAX_TOKENS"), 8);
 
     private static final Path RESULTS_DIR = Paths.get(System.getProperty("user.dir"), "build", "benchmark-results");
     private static final Path RESULTS_TSV = RESULTS_DIR.resolve("results.tsv");
+    private static final ConcurrentMap<String, BenchmarkResult> PLAIN_BASELINE_CACHE = new ConcurrentHashMap<>();
 
     private static final Set<HybridKernelFactory.KernelType> ALL_KERNELS = Set.of(
             HybridKernelFactory.KernelType.GEMV,
@@ -48,6 +52,11 @@ final class InferenceBenchmarkSupport {
         return runBenchmark("Plain Java", () -> new LlamaInference(modelPath));
     }
 
+    static BenchmarkResult runPlainJavaCached(Path modelPath) {
+        String key = modelPath.toAbsolutePath() + "|tokens=" + MAX_TOKENS + "|prompt=" + USER_PROMPT;
+        return PLAIN_BASELINE_CACHE.computeIfAbsent(key, ignored -> runPlainJava(modelPath));
+    }
+
     static BenchmarkResult runHat(Path modelPath, BackendType backendType, String label) {
         return runBenchmark(label, () -> new LlamaInference(modelPath, new HybridKernelFactory(ALL_KERNELS), backendType));
     }
@@ -59,7 +68,7 @@ final class InferenceBenchmarkSupport {
     static List<BenchmarkResult> runKernelModeComparison(Path modelPath, HybridKernelFactory.KernelType kernel) {
         String kernelName = kernel.name();
         return List.of(
-                runPlainJava(modelPath),
+                runPlainJavaCached(modelPath),
                 runHatSingleKernel(modelPath, BackendType.JAVA_SEQ, kernel, "HAT Java Sequential (" + kernelName + ")"),
                 runHatSingleKernel(modelPath, BackendType.JAVA_MT, kernel, "HAT Java MT (" + kernelName + ")"),
                 runOpenclSingleKernel(modelPath, kernel, "HAT OpenCL GPU (" + kernelName + ")")
@@ -179,6 +188,16 @@ final class InferenceBenchmarkSupport {
         if (s == null) return "";
         // Keep TSV single-line.
         return s.replace('\t', ' ').replace('\n', ' ').replace('\r', ' ');
+    }
+
+    private static int parsePositiveInt(String raw, int fallback) {
+        if (raw == null || raw.isBlank()) return fallback;
+        try {
+            int value = Integer.parseInt(raw.trim());
+            return value > 0 ? value : fallback;
+        } catch (NumberFormatException ignored) {
+            return fallback;
+        }
     }
 
     @FunctionalInterface
