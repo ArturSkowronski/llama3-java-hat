@@ -93,10 +93,44 @@ registerIntegrationTest("benchmarkHatMt",
 registerIntegrationTest("benchmarkOpencl",
     "Runs inference benchmark: HAT OpenCL only (requires RUN_OPENCL_BENCHMARKS=true).", "benchmark-opencl")
 
+registerIntegrationTest("benchmarkKernel",
+    "Runs per-kernel benchmark comparison across Plain Java, HAT Java Seq, HAT Java MT and HAT OpenCL.", "benchmark-kernel")
+
+registerIntegrationTest("benchmarkKernelGEMV",
+    "Runs per-kernel benchmark comparison for GEMV.", "benchmark-kernel-gemv")
+
+registerIntegrationTest("benchmarkKernelRMSNorm",
+    "Runs per-kernel benchmark comparison for RMSNorm.", "benchmark-kernel-rmsnorm")
+
+registerIntegrationTest("benchmarkKernelRoPE",
+    "Runs per-kernel benchmark comparison for RoPE.", "benchmark-kernel-rope")
+
+registerIntegrationTest("benchmarkKernelSiLU",
+    "Runs per-kernel benchmark comparison for SiLU.", "benchmark-kernel-silu")
+
+registerIntegrationTest("benchmarkKernelSoftmax",
+    "Runs per-kernel benchmark comparison for Softmax.", "benchmark-kernel-softmax")
+
+registerIntegrationTest("benchmarkKernelAttention",
+    "Runs per-kernel benchmark comparison for Attention.", "benchmark-kernel-attention")
+
 tasks.register("benchmarkAll") {
     description = "Runs all benchmark shards (Plain, HAT seq, HAT mt, OpenCL)."
     group = "verification"
     dependsOn("benchmarkPlain", "benchmarkHatSeq", "benchmarkHatMt", "benchmarkOpencl")
+}
+
+tasks.register("benchmarkKernelAll") {
+    description = "Runs per-kernel benchmark comparisons for all kernels."
+    group = "verification"
+    dependsOn(
+        "benchmarkKernelGEMV",
+        "benchmarkKernelRMSNorm",
+        "benchmarkKernelRoPE",
+        "benchmarkKernelSiLU",
+        "benchmarkKernelSoftmax",
+        "benchmarkKernelAttention"
+    )
 }
 
 registerIntegrationTest("openclBugTest",
