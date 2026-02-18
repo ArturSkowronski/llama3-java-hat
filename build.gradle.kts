@@ -22,37 +22,64 @@ dependencies {
     implementation(files("$babylonHome/hat/build/hat-core-1.0.jar"))
     implementation(files("$babylonHome/hat/build/hat-optkl-1.0.jar"))
     implementation(files("$babylonHome/hat/build/hat-backend-java-seq-1.0.jar"))
+    implementation(files("$babylonHome/hat/build/hat-backend-java-mt-1.0.jar"))
+    implementation(files("$babylonHome/hat/build/hat-backend-ffi-opencl-1.0.jar"))
+    implementation(files("$babylonHome/hat/build/hat-backend-ffi-shared-1.0.jar"))
 
     testImplementation("org.junit.jupiter:junit-jupiter:6.0.0")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
 tasks.test {
-    useJUnitPlatform()
-    jvmArgs(application.applicationDefaultJvmArgs)
-}
-
-tasks.register<Test>("integrationTest") {
-    description = "Runs integration tests."
-    group = "verification"
-    
-    testClassesDirs = sourceSets["test"].output.classesDirs
-    classpath = sourceSets["test"].runtimeClasspath
-
     useJUnitPlatform {
-        includeTags("integration")
+        excludeTags("integration")
     }
     jvmArgs(application.applicationDefaultJvmArgs)
-    
-    val tinyLlamaPath = System.getenv("TINY_LLAMA_PATH")
-    if (tinyLlamaPath != null) {
-        environment("TINY_LLAMA_PATH", tinyLlamaPath)
-    }
-    val llamaFp16Path = System.getenv("LLAMA_FP16_PATH")
-    if (llamaFp16Path != null) {
-        environment("LLAMA_FP16_PATH", llamaFp16Path)
-    }
 }
+
+fun registerIntegrationTest(name: String, description: String, vararg tags: String) =
+    tasks.register<Test>(name) {
+        this.description = description
+        group = "verification"
+
+        testClassesDirs = sourceSets["test"].output.classesDirs
+        classpath = sourceSets["test"].runtimeClasspath
+
+        useJUnitPlatform {
+            tags.forEach { includeTags(it) }
+        }
+        jvmArgs(application.applicationDefaultJvmArgs)
+        jvmArgs("-Xmx5g")
+        forkEvery = 1 // Fork a new JVM per test class to prevent OOM from repeated model loads
+
+        // Forward test output to Gradle console so CI sees activity
+        // (prevents GitHub Actions no-output timeout during long inference)
+        testLogging {
+            showStandardStreams = true
+            events("started", "passed", "failed")
+        }
+
+        System.getenv("TINY_LLAMA_PATH")?.let { environment("TINY_LLAMA_PATH", it) }
+        System.getenv("LLAMA_FP16_PATH")?.let { environment("LLAMA_FP16_PATH", it) }
+    }
+
+registerIntegrationTest("integrationTest",
+    "Runs all integration tests.", "integration")
+
+registerIntegrationTest("plainJavaIntegrationTest",
+    "Runs plain Java integration tests (no HAT).", "plain-java")
+
+registerIntegrationTest("hatSequentialIntegrationTest",
+    "Runs HAT Sequential backend integration tests.", "hat-sequential")
+
+registerIntegrationTest("hatGpuIntegrationTest",
+    "Runs HAT GPU (OpenCL/JavaMT) integration tests.", "hat-gpu")
+
+registerIntegrationTest("benchmark",
+    "Runs inference benchmark across all backends.", "benchmark")
+
+registerIntegrationTest("openclBugTest",
+    "Reproduces OpenCL FFI IllegalAccessError on ComputeEntrypoint.lowered.", "opencl-bug")
 
 java {
     toolchain {
@@ -74,6 +101,7 @@ application {
         "--enable-preview",
         "--add-modules=jdk.incubator.code",
         "--add-exports=java.base/jdk.internal.vm.annotation=ALL-UNNAMED",
+        "--enable-native-access=ALL-UNNAMED",
         "-Djava.library.path=$babylonHome/hat/build"
     )
 }

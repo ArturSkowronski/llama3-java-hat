@@ -113,6 +113,13 @@ jobs:
           name: babylon-jdk
           path: babylon-jdk
 
+      - name: Install OpenCL CPU Runtime (PoCL)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y pocl-opencl-icd ocl-icd-opencl-dev
+          echo "=== Installed OpenCL platforms ==="
+          clinfo --list 2>/dev/null || echo "clinfo not available, but PoCL ICD is installed"
+
       - name: Setup Environment
         run: |
           echo "=== Debug: Listing artifact contents ==="
@@ -137,14 +144,21 @@ jobs:
           ./gradlew build
           ./gradlew test
 
+      - name: Run HAT Backend Bug Tests (OpenCL FFI + Java MT)
+        continue-on-error: true
+        run: |
+          export JAVA_HOME=$JAVA_BABYLON_ROOT/build/linux-x86_64-server-release/images/jdk
+          export PATH=$JAVA_HOME/bin:$PATH
+          ./gradlew openclBugTest
+
       - name: Download TinyLlama
         run: |
           chmod +x scripts/download_tinyllama.sh
           ./scripts/download_tinyllama.sh
 
-      - name: Run Integration Tests
+      - name: Run Plain Java Integration Tests
         run: |
           export JAVA_HOME=$JAVA_BABYLON_ROOT/build/linux-x86_64-server-release/images/jdk
           export PATH=$JAVA_HOME/bin:$PATH
           export TINY_LLAMA_PATH=$(pwd)/tinyllama-1.1b-chat-v1.0.Q2_K.gguf
-          ./gradlew integrationTest
+          ./gradlew plainJavaIntegrationTest

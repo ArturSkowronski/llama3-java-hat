@@ -8,6 +8,7 @@ import java.io.IOException;
 import static org.junit.jupiter.api.Assertions.*;
 
 @Tag("integration")
+@Tag("plain-java")
 public class TinyLlamaIntegrationTest {
 
     @Test

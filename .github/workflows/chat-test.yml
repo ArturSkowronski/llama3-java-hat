@@ -18,6 +18,10 @@ on:
           - all-hat
           - full-matrix
 
+concurrency:
+  group: chat-test-${{ github.head_ref || github.ref }}
+  cancel-in-progress: false
+
 jobs:
   build-babylon:
     runs-on: ubuntu-latest
@@ -142,7 +146,7 @@ jobs:
           export PATH=$JAVA_HOME/bin:$PATH
           ./gradlew build -x test --console=plain
 
-      - name: Run Plain Java Baseline Test
+      - name: Run Plain Java Baseline Tests
         timeout-minutes: 30
         env:
           CI: "true"
@@ -150,8 +154,7 @@ jobs:
           export JAVA_HOME=$JAVA_BABYLON_ROOT/build/linux-x86_64-server-release/images/jdk
           export PATH=$JAVA_HOME/bin:$PATH
           export LLAMA_FP16_PATH=$(pwd)/Llama-3.2-1B-Instruct-f16.gguf
-          # --console=plain prevents Gradle output buffering that causes GitHub Actions no-output timeout
-          ./gradlew integrationTest --tests "ChatIntegrationTest" --console=plain
+          ./gradlew plainJavaIntegrationTest --tests "com.arturskowronski.llama3babylon.hat.integration.chat.ChatIntegrationTest" --console=plain
 
       - name: Upload Baseline Results
         if: always()
@@ -208,7 +211,7 @@ jobs:
           export PATH=$JAVA_HOME/bin:$PATH
           ./gradlew build -x test --console=plain
 
-      - name: Run All-HAT Integration Test (6/6 kernels)
+      - name: Run HAT Sequential Integration Tests
         timeout-minutes: 30
         env:
           CI: "true"
@@ -216,8 +219,7 @@ jobs:
           export JAVA_HOME=$JAVA_BABYLON_ROOT/build/linux-x86_64-server-release/images/jdk
           export PATH=$JAVA_HOME/bin:$PATH
           export LLAMA_FP16_PATH=$(pwd)/Llama-3.2-1B-Instruct-f16.gguf
-          echo "Running ALL 6 HAT kernels simultaneously: GEMV, RMSNorm, RoPE, SiLU, Softmax, Attention"
-          ./gradlew integrationTest --tests "ChatIntegrationTestWithAllHAT" --console=plain
+          ./gradlew hatSequentialIntegrationTest --console=plain
 
       - name: Upload All-HAT Results
         if: always()
@@ -285,8 +287,7 @@ jobs:
           export JAVA_HOME=$JAVA_BABYLON_ROOT/build/linux-x86_64-server-release/images/jdk
           export PATH=$JAVA_HOME/bin:$PATH
           export LLAMA_FP16_PATH=$(pwd)/Llama-3.2-1B-Instruct-f16.gguf
-          echo "Running ${{ matrix.kernel }} HAT kernel test"
-          ./gradlew integrationTest --tests "ChatIntegrationTestWith${{ matrix.kernel }}HAT" --console=plain
+          ./gradlew hatSequentialIntegrationTest --tests "ChatIntegrationTestWith${{ matrix.kernel }}HAT" --console=plain
 
       - name: Upload ${{ matrix.kernel }} Results
         if: always()
