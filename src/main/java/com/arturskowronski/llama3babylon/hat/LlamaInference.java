@@ -149,11 +149,16 @@ public class LlamaInference {
     public int[] generate(int[] promptTokens, int maxNewTokens, Set<Integer> stopTokens) {
         int[] result = new int[maxNewTokens];
         int generated = 0;
+        boolean isCI = System.getenv("CI") != null;
 
         // Prefill: process all prompt tokens
         float[] lastLogits = null;
         for (int i = 0; i < promptTokens.length; i++) {
             lastLogits = forward(promptTokens[i], i);
+            if (isCI) {
+                System.out.print("p");
+                System.out.flush();
+            }
         }
 
         // First generated token from last prefill logits
@@ -162,22 +167,19 @@ public class LlamaInference {
         generated = 1;
 
         // Auto-regressive generation
-        boolean isCI = System.getenv("CI") != null;
         while (generated < maxNewTokens && !stopTokens.contains(nextToken)) {
             lastLogits = forward(nextToken, promptTokens.length + generated - 1);
             nextToken = argmax(lastLogits);
             result[generated] = nextToken;
             generated++;
 
-            // Print progress on CI to prevent GitHub Actions no-output timeout (~10 min)
-            // Use stderr because Gradle buffers stdout until test completion
-            if (isCI && generated % 4 == 0) {
-                System.err.print(".");
-                System.err.flush();
+            if (isCI) {
+                System.out.print(".");
+                System.out.flush();
             }
         }
-        if (isCI && generated > 0) {
-            System.err.println(); // newline after dots
+        if (isCI) {
+            System.out.println(); // newline after progress
         }
 
         return Arrays.copyOf(result, generated);
