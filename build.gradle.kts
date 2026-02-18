@@ -191,9 +191,9 @@ registerBenchmarkTestByPattern(
 )
 
 tasks.register("benchmarkAll") {
-    description = "Runs all benchmark shards (Plain, HAT seq, HAT mt, OpenCL)."
+    description = "Runs all benchmark suites (end-to-end, per-kernel, and micro)."
     group = "verification"
-    dependsOn("benchmarkPlain", "benchmarkHatSeq", "benchmarkHatMt", "benchmarkOpencl")
+    dependsOn("benchmark", "benchmarkKernelAll", "benchmarkMicroAll")
 }
 
 tasks.register("benchmarkKernelAll") {
@@ -207,6 +207,12 @@ tasks.register("benchmarkKernelAll") {
         "benchmarkKernelSoftmax",
         "benchmarkKernelAttention"
     )
+}
+
+tasks.register("benchmarkDaily") {
+    description = "Runs the daily benchmark suite used in CI/nightly."
+    group = "verification"
+    dependsOn("benchmarkKernelAll")
 }
 
 tasks.register("benchmarkMicroAll") {

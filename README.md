@@ -123,7 +123,7 @@ LLAMA_FP16_PATH=$(pwd)/Llama-3.2-1B-Instruct-f16.gguf ./gradlew hatIntegrationTe
 Benchmarks:
 
 ```bash
-LLAMA_FP16_PATH=$(pwd)/Llama-3.2-1B-Instruct-f16.gguf ./gradlew benchmarkKernelAll
+LLAMA_FP16_PATH=$(pwd)/Llama-3.2-1B-Instruct-f16.gguf ./gradlew benchmarkDaily
 ```
 
 Regression-only:
