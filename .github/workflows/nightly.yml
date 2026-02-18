@@ -168,7 +168,9 @@ jobs:
           ./gradlew plainJavaIntegrationTest --console=plain
 
       - name: Run HAT Sequential Tests
-        timeout-minutes: 30
+        # This suite can legitimately take longer than 30 minutes on GitHub-hosted runners.
+        # Keep it below the job timeout to still fail deterministically if it hangs.
+        timeout-minutes: 55
         env:
           CI: "true"
         run: |
@@ -183,6 +185,8 @@ jobs:
         with:
           name: nightly-results
           path: |
-            build/reports/tests/integrationTest/
-            build/test-results/integrationTest/
+            build/reports/tests/plainJavaIntegrationTest/
+            build/test-results/plainJavaIntegrationTest/
+            build/reports/tests/hatSequentialIntegrationTest/
+            build/test-results/hatSequentialIntegrationTest/
           retention-days: 3
