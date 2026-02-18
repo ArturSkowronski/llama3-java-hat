@@ -136,8 +136,8 @@ jobs:
         with:
           name: weekly-results-baseline
           path: |
-            build/reports/tests/integrationTest/
-            build/test-results/integrationTest/
+            build/reports/tests/plainJavaIntegrationTest/
+            build/test-results/plainJavaIntegrationTest/
           retention-days: 7
 
   individual-hat-tests:
@@ -202,12 +202,77 @@ jobs:
         with:
           name: weekly-results-${{ matrix.kernel }}-hat
           path: |
-            build/reports/tests/integrationTest/
-            build/test-results/integrationTest/
+            build/reports/tests/hatSequentialIntegrationTest/
+            build/test-results/hatSequentialIntegrationTest/
+          retention-days: 7
+
+  benchmarks:
+    needs: build-babylon
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Checkout Project
+        uses: actions/checkout@v4
+
+      - name: Download Babylon Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: babylon-jdk-weekly
+          path: babylon-jdk
+
+      - name: Setup Environment
+        run: |
+          JDK_PATH=babylon-jdk/build/linux-x86_64-server-release/images/jdk
+          chmod -R +x $JDK_PATH/bin/
+          find $JDK_PATH/lib -type f -name "jspawnhelper" -exec chmod +x {} \;
+          find $JDK_PATH/lib -type f -name "*.so" -exec chmod +x {} \;
+          echo "JAVA_BABYLON_ROOT=$(pwd)/babylon-jdk" >> $GITHUB_ENV
+          chmod +x gradlew
+
+      - name: Cache Llama 3.2 1B Model
+        id: cache-llama
+        uses: actions/cache@v4
+        with:
+          path: Llama-3.2-1B-Instruct-f16.gguf
+          key: llama-3.2-1b-instruct-f16-gguf
+
+      - name: Download Llama 3.2 1B Instruct FP16
+        if: steps.cache-llama.outputs.cache-hit != 'true'
+        run: |
+          chmod +x scripts/download_llama_fp16.sh
+          ./scripts/download_llama_fp16.sh
+
+      - name: Build Project
+        run: |
+          export JAVA_HOME=$JAVA_BABYLON_ROOT/build/linux-x86_64-server-release/images/jdk
+          export PATH=$JAVA_HOME/bin:$PATH
+          ./gradlew build -x test --console=plain
+
+      - name: Run Weekly Benchmarks (CPU + HAT Java)
+        env:
+          CI: "true"
+          LLAMA_FP16_PATH: ${{ github.workspace }}/Llama-3.2-1B-Instruct-f16.gguf
+        run: |
+          export JAVA_HOME=$JAVA_BABYLON_ROOT/build/linux-x86_64-server-release/images/jdk
+          export PATH=$JAVA_HOME/bin:$PATH
+          ./gradlew benchmarkPlain benchmarkHatSeq benchmarkHatMt --console=plain
+
+      - name: Upload Benchmark Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: weekly-results-benchmarks
+          path: |
+            build/reports/tests/benchmarkPlain/
+            build/test-results/benchmarkPlain/
+            build/reports/tests/benchmarkHatSeq/
+            build/test-results/benchmarkHatSeq/
+            build/reports/tests/benchmarkHatMt/
+            build/test-results/benchmarkHatMt/
           retention-days: 7
 
   all-hat-test:
-    needs: [baseline-test, individual-hat-tests]
+    needs: [baseline-test, individual-hat-tests, benchmarks]
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
@@ -248,7 +313,7 @@ jobs:
           export PATH=$JAVA_HOME/bin:$PATH
           ./gradlew build -x test --console=plain
 
-      - name: Run HAT Sequential Integration Tests
+      - name: Run HAT Sequential Integration Tests (repeat x2)
         timeout-minutes: 30
         env:
           CI: "true"
@@ -257,6 +322,7 @@ jobs:
           export PATH=$JAVA_HOME/bin:$PATH
           export LLAMA_FP16_PATH=$(pwd)/Llama-3.2-1B-Instruct-f16.gguf
           ./gradlew hatSequentialIntegrationTest --console=plain
+          ./gradlew hatSequentialIntegrationTest --console=plain
 
       - name: Upload All-HAT Results
         if: always()
@@ -264,6 +330,6 @@ jobs:
         with:
           name: weekly-results-all-hat
           path: |
-            build/reports/tests/integrationTest/
-            build/test-results/integrationTest/
+            build/reports/tests/hatSequentialIntegrationTest/
+            build/test-results/hatSequentialIntegrationTest/
           retention-days: 7
