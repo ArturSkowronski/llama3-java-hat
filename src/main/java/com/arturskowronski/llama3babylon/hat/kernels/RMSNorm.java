@@ -7,6 +7,9 @@ import hat.NDRange;
 import hat.buffer.F32Array;
 import jdk.incubator.code.Reflect;
 
+import static optkl.ifacemapper.MappableIface.RO;
+import static optkl.ifacemapper.MappableIface.RW;
+
 /**
  * RMSNorm (Root Mean Square Layer Normalization) kernel for Llama 3.2 1B.
  *
@@ -47,13 +50,13 @@ public class RMSNorm implements IRMSNorm {
     }
 
     @Reflect
-    public static void normalizeKernel(KernelContext kc, F32Array input, F32Array weight, float invRms) {
+    public static void normalizeKernel(@RO KernelContext kc, @RW F32Array input, @RO F32Array weight, @RO float invRms) {
         int i = kc.gix;
         input.array(i, input.array(i) * invRms * weight.array(i));
     }
 
     @Reflect
-    public static void dispatchNormalize(ComputeContext cc, F32Array input, F32Array weight, float invRms, int size) {
+    public static void dispatchNormalize(@RO ComputeContext cc, @RW F32Array input, @RO F32Array weight, @RO float invRms, @RO int size) {
         cc.dispatchKernel(NDRange.of1D(size), kc -> normalizeKernel(kc, input, weight, invRms));
     }
 }

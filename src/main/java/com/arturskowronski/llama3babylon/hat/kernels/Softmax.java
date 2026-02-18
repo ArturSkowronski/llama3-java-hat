@@ -9,6 +9,9 @@ import hat.buffer.F32Array;
 
 import java.lang.invoke.MethodHandles;
 
+import static optkl.ifacemapper.MappableIface.RO;
+import static optkl.ifacemapper.MappableIface.RW;
+
 /**
  * Softmax kernel for Llama 3.2 1B Instruct (FP16).
  *
@@ -59,13 +62,13 @@ public class Softmax implements ISoftmax {
     }
 
     @Reflect
-    public static void normalizeKernel(KernelContext kc, F32Array input, float invSum) {
+    public static void normalizeKernel(@RO KernelContext kc, @RW F32Array input, @RO float invSum) {
         int i = kc.gix;
         input.array(i, input.array(i) * invSum);
     }
 
     @Reflect
-    public static void computeNormalize(ComputeContext cc, F32Array input, float invSum, int size) {
+    public static void computeNormalize(@RO ComputeContext cc, @RW F32Array input, @RO float invSum, @RO int size) {
         cc.dispatchKernel(NDRange.of1D(size), kc -> normalizeKernel(kc, input, invSum));
     }
 

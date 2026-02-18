@@ -8,6 +8,8 @@ import hat.NDRange;
 import hat.backend.Backend;
 import hat.buffer.F32Array;
 import jdk.incubator.code.Reflect;
+import static optkl.ifacemapper.MappableIface.RO;
+import static optkl.ifacemapper.MappableIface.WO;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
@@ -33,14 +35,14 @@ import static org.junit.jupiter.api.Assertions.*;
 public class OpenCLFFIAccessErrorTest {
 
     @Reflect
-    public static void addKernel(KernelContext kc, F32Array a, F32Array b, F32Array result) {
+    public static void addKernel(@RO KernelContext kc, @RO F32Array a, @RO F32Array b, @WO F32Array result) {
         if (kc.gix < kc.gsx) {
             result.array(kc.gix, a.array(kc.gix) + b.array(kc.gix));
         }
     }
 
     @Reflect
-    public static void vectorAdd(ComputeContext cc, F32Array a, F32Array b, F32Array result) {
+    public static void vectorAdd(@RO ComputeContext cc, @RO F32Array a, @RO F32Array b, @WO F32Array result) {
         cc.dispatchKernel(NDRange.of1D(a.length()),
                 kc -> addKernel(kc, a, b, result));
     }

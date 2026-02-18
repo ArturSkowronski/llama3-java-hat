@@ -6,6 +6,9 @@ import hat.KernelContext;
 import hat.NDRange;
 import hat.buffer.F32Array;
 import jdk.incubator.code.Reflect;
+import static optkl.ifacemapper.MappableIface.RO;
+import static optkl.ifacemapper.MappableIface.RW;
+import static optkl.ifacemapper.MappableIface.WO;
 
 /**
  * GEMV (Matrix-Vector Multiplication) kernel using HAT @Reflect dispatch.
@@ -48,12 +51,12 @@ public class GEMVHAT implements IGEMV {
     }
 
     @Reflect
-    public static void dispatchGEMV(ComputeContext cc, F32Array matrix, F32Array vector, F32Array result, int rows, int cols) {
+    public static void dispatchGEMV(@RO ComputeContext cc, @RO F32Array matrix, @RO F32Array vector, @WO F32Array result, @RO int rows, @RO int cols) {
         cc.dispatchKernel(NDRange.of1D(rows), kc -> gemvKernel(kc, matrix, vector, result, cols));
     }
 
     @Reflect
-    public static void gemvKernel(KernelContext kc, F32Array matrix, F32Array vector, F32Array result, int cols) {
+    public static void gemvKernel(@RO KernelContext kc, @RO F32Array matrix, @RO F32Array vector, @WO F32Array result, @RO int cols) {
         int row = kc.gix;
         float sum = 0.0f;
         int rowOffset = row * cols;

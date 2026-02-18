@@ -6,6 +6,8 @@ import hat.KernelContext;
 import hat.NDRange;
 import hat.buffer.F32Array;
 import jdk.incubator.code.Reflect;
+import static optkl.ifacemapper.MappableIface.RO;
+import static optkl.ifacemapper.MappableIface.RW;
 
 /**
  * Softmax kernel using HAT @Reflect dispatch.
@@ -66,12 +68,12 @@ public class SoftmaxHAT implements ISoftmax {
     }
 
     @Reflect
-    public static void computeNormalize(ComputeContext cc, F32Array input, float invSum, int size) {
+    public static void computeNormalize(@RO ComputeContext cc, @RW F32Array input, @RO float invSum, @RO int size) {
         cc.dispatchKernel(NDRange.of1D(size), kc -> normalizeKernel(kc, input, invSum));
     }
 
     @Reflect
-    public static void normalizeKernel(KernelContext kc, F32Array input, float invSum) {
+    public static void normalizeKernel(@RO KernelContext kc, @RW F32Array input, @RO float invSum) {
         int i = kc.gix;
         input.array(i, input.array(i) * invSum);
     }

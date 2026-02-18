@@ -6,6 +6,8 @@ import hat.KernelContext;
 import hat.NDRange;
 import hat.buffer.F32Array;
 import jdk.incubator.code.Reflect;
+import static optkl.ifacemapper.MappableIface.RO;
+import static optkl.ifacemapper.MappableIface.RW;
 
 /**
  * SiLU (Sigmoid Linear Unit) kernel using HAT @Reflect dispatch.
@@ -38,12 +40,12 @@ public class SiLUHAT implements ISiLU {
     }
 
     @Reflect
-    public static void dispatchSiLU(ComputeContext cc, F32Array input, int size) {
+    public static void dispatchSiLU(@RO ComputeContext cc, @RW F32Array input, @RO int size) {
         cc.dispatchKernel(NDRange.of1D(size), kc -> siluKernel(kc, input));
     }
 
     @Reflect
-    public static void siluKernel(KernelContext kc, F32Array input) {
+    public static void siluKernel(@RO KernelContext kc, @RW F32Array input) {
         int i = kc.gix;
         float x = input.array(i);
         input.array(i, x / (1.0f + (float) Math.exp(-x)));
