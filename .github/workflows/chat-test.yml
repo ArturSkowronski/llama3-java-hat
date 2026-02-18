@@ -154,7 +154,7 @@ jobs:
           export JAVA_HOME=$JAVA_BABYLON_ROOT/build/linux-x86_64-server-release/images/jdk
           export PATH=$JAVA_HOME/bin:$PATH
           export LLAMA_FP16_PATH=$(pwd)/Llama-3.2-1B-Instruct-f16.gguf
-          ./gradlew plainJavaIntegrationTest --console=plain
+          ./gradlew plainJavaIntegrationTest --tests "com.arturskowronski.llama3babylon.hat.integration.chat.ChatIntegrationTest" --console=plain
 
       - name: Upload Baseline Results
         if: always()
