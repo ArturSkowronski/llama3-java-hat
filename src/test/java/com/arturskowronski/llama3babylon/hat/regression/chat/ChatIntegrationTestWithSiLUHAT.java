@@ -16,9 +16,7 @@ import java.util.Set;
  * Integration test for SiLU kernel using HAT @Reflect dispatch in real 16-layer inference.
  * Enables ONLY SiLU for HAT dispatch while keeping all other kernels in plain Java mode.
  */
-@Tag("integration")
 @Tag("regression")
-@Tag("hat-sequential")
 public class ChatIntegrationTestWithSiLUHAT {
 
     @Test

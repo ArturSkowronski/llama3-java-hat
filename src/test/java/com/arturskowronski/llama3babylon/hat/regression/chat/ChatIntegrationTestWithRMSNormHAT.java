@@ -16,9 +16,7 @@ import java.util.Set;
  * Integration test for RMSNorm kernel using HAT @Reflect dispatch in real 16-layer inference.
  * Enables ONLY RMSNorm for HAT dispatch. Sum computation stays in Java, normalization uses HAT.
  */
-@Tag("integration")
 @Tag("regression")
-@Tag("hat-sequential")
 public class ChatIntegrationTestWithRMSNormHAT {
 
     @Test

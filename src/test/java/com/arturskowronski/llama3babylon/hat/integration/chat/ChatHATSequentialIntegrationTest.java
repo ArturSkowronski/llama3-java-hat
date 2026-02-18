@@ -1,6 +1,5 @@
 package com.arturskowronski.llama3babylon.hat.integration.chat;
 
-import com.arturskowronski.llama3babylon.hat.BackendType;
 import com.arturskowronski.llama3babylon.hat.LlamaInference;
 import com.arturskowronski.llama3babylon.hat.utils.ResponseAssertions;
 import com.arturskowronski.llama3babylon.hat.kernels.HybridKernelFactory;
@@ -9,24 +8,23 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 
 import java.io.IOException;
-import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Set;
 
 /**
- * Integration test running all 6 HAT kernels on the OpenCL GPU backend.
- * The same kernel code that ran on the Java Sequential backend is now dispatched to GPU via OpenCL FFI.
+ * Integration test with ALL 6 kernels using HAT @Reflect dispatch simultaneously.
+ * Validates that all HAT kernels work together in real 16-layer inference.
+ * Total HAT dispatches per token: ~250, ~8,000 for 32-token inference.
  */
-@Tag("integration")
-@Tag("hat-gpu")
-public class ChatIntegrationTestWithOpenCL {
+@Tag("hat-integration")
+public class ChatHATSequentialIntegrationTest {
 
     @Test
     @EnabledIfEnvironmentVariable(named = "LLAMA_FP16_PATH", matches = ".*")
-    public void testChatWithAllHATKernelsOnOpenCL() throws IOException {
-        Path modelPath = Paths.get(System.getenv("LLAMA_FP16_PATH"));
+    public void testChatWithAllHATKernels() throws IOException {
+        var modelPath = Paths.get(System.getenv("LLAMA_FP16_PATH"));
 
-        HybridKernelFactory factory = new HybridKernelFactory(
+        var factory = new HybridKernelFactory(
             Set.of(
                 HybridKernelFactory.KernelType.GEMV,
                 HybridKernelFactory.KernelType.RMSNORM,
@@ -37,7 +35,7 @@ public class ChatIntegrationTestWithOpenCL {
             )
         );
 
-        LlamaInference inference = new LlamaInference(modelPath, factory, BackendType.OPENCL);
+        var inference = new LlamaInference(modelPath, factory);
 
         int maxTokens = System.getenv("CI") != null ? 32 : 128;
         String response = inference.chat(
@@ -46,9 +44,9 @@ public class ChatIntegrationTestWithOpenCL {
                 maxTokens
         );
 
-        System.out.println("=== Model Response (ALL HAT KERNELS + OPENCL GPU BACKEND) ===");
+        System.out.println("=== Model Response (ALL HAT KERNELS) ===");
         System.out.println(response);
-        System.out.println("==============================================================");
+        System.out.println("=========================================");
 
         ResponseAssertions.assertValidResponse(response);
     }

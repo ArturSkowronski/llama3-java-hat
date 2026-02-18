@@ -1,12 +1,10 @@
-package com.arturskowronski.llama3babylon.hat.integration.benchmark;
+package com.arturskowronski.llama3babylon.hat.benchmark;
 
 import com.arturskowronski.llama3babylon.hat.BackendType;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
-@Tag("integration")
 @Tag("benchmark")
-@Tag("benchmark-hat-mt")
 public class HatJavaMtInferenceBenchmarkTest {
 
     @Test
@@ -20,6 +18,5 @@ public class HatJavaMtInferenceBenchmarkTest {
 
         var result = InferenceBenchmarkSupport.runHat(InferenceBenchmarkSupport.modelPathFromEnv(), BackendType.JAVA_MT, "HAT Java MT");
         InferenceBenchmarkSupport.recordResult(result);
-        InferenceBenchmarkSupport.gcPause();
     }
 }

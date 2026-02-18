@@ -16,9 +16,7 @@ import java.util.Set;
  * Integration test for Attention kernel using HAT @Reflect dispatch in real 16-layer inference.
  * Enables ONLY Attention for HAT dispatch. Two-step: compute scores (Q*K^T) and compute values (Scores*V).
  */
-@Tag("integration")
 @Tag("regression")
-@Tag("hat-sequential")
 public class ChatIntegrationTestWithAttentionHAT {
 
     @Test

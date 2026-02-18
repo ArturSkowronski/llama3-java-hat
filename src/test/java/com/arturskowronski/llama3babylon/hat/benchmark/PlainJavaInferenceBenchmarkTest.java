@@ -1,11 +1,9 @@
-package com.arturskowronski.llama3babylon.hat.integration.benchmark;
+package com.arturskowronski.llama3babylon.hat.benchmark;
 
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
-@Tag("integration")
 @Tag("benchmark")
-@Tag("benchmark-plain")
 public class PlainJavaInferenceBenchmarkTest {
 
     @Test
@@ -19,6 +17,5 @@ public class PlainJavaInferenceBenchmarkTest {
 
         var result = InferenceBenchmarkSupport.runPlainJava(InferenceBenchmarkSupport.modelPathFromEnv());
         InferenceBenchmarkSupport.recordResult(result);
-        InferenceBenchmarkSupport.gcPause();
     }
 }

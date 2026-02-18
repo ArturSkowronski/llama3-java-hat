@@ -14,9 +14,8 @@ import java.nio.file.Paths;
  * End-to-end chat integration test using the real Llama 3.2 1B Instruct FP16 model.
  * Runs with ALL kernels in plain-Java mode (no HAT @Reflect dispatch).
  */
-@Tag("integration")
-@Tag("plain-java")
-public class ChatIntegrationTest {
+@Tag("plain-integration")
+public class ChatJavaPlainIntegrationTest {
 
     @Test
     @EnabledIfEnvironmentVariable(named = "LLAMA_FP16_PATH", matches = ".*")

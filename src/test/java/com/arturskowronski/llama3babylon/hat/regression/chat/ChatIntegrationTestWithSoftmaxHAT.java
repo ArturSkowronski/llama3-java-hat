@@ -16,9 +16,7 @@ import java.util.Set;
  * Integration test for Softmax kernel using HAT @Reflect dispatch in real 16-layer inference.
  * Enables ONLY Softmax for HAT dispatch. Only the normalize step uses HAT (reductions stay in Java).
  */
-@Tag("integration")
 @Tag("regression")
-@Tag("hat-sequential")
 public class ChatIntegrationTestWithSoftmaxHAT {
 
     @Test

@@ -113,12 +113,12 @@ jobs:
           export TINY_LLAMA_PATH=$(pwd)/tinyllama-1.1b-chat-v1.0.Q2_K.gguf
           ./gradlew build --console=plain
           ./gradlew test --console=plain
-          ./gradlew plainJavaIntegrationTest --console=plain
+          ./gradlew plainIntegrationTest --console=plain
 
-  all-hat-test:
+  daily-integration:
     needs: build-babylon
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 120
     steps:
       - name: Checkout Project
         uses: actions/checkout@v4
@@ -157,29 +157,15 @@ jobs:
           export PATH=$JAVA_HOME/bin:$PATH
           ./gradlew build -x test --console=plain
 
-      - name: Run Plain Java Baseline
-        timeout-minutes: 30
+      - name: Run Daily Integration Suite
+        timeout-minutes: 90
         env:
           CI: "true"
         run: |
           export JAVA_HOME=$JAVA_BABYLON_ROOT/build/linux-x86_64-server-release/images/jdk
           export PATH=$JAVA_HOME/bin:$PATH
           export LLAMA_FP16_PATH=$(pwd)/Llama-3.2-1B-Instruct-f16.gguf
-          ./gradlew plainJavaIntegrationTest --console=plain
-
-      - name: Run HAT Sequential Smoke Test
-        # Nightly runs a smoke subset for fast signal.
-        # Full HAT sequential coverage remains available in dedicated/full workflows.
-        timeout-minutes: 25
-        env:
-          CI: "true"
-        run: |
-          export JAVA_HOME=$JAVA_BABYLON_ROOT/build/linux-x86_64-server-release/images/jdk
-          export PATH=$JAVA_HOME/bin:$PATH
-          export LLAMA_FP16_PATH=$(pwd)/Llama-3.2-1B-Instruct-f16.gguf
-          ./gradlew hatSequentialIntegrationTest \
-            --tests "com.arturskowronski.llama3babylon.hat.integration.chat.ChatIntegrationTestWithAllHAT" \
-            --console=plain
+          ./gradlew integrationTest --console=plain
 
       - name: Upload Results
         if: always()
@@ -187,8 +173,78 @@ jobs:
         with:
           name: nightly-results
           path: |
-            build/reports/tests/plainJavaIntegrationTest/
-            build/test-results/plainJavaIntegrationTest/
-            build/reports/tests/hatSequentialIntegrationTest/
-            build/test-results/hatSequentialIntegrationTest/
+            build/reports/tests/integrationTest/
+            build/test-results/integrationTest/
+          retention-days: 3
+
+  daily-benchmarks:
+    needs: build-babylon
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - name: Checkout Project
+        uses: actions/checkout@v4
+
+      - name: Download Babylon Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: babylon-jdk-nightly
+          path: babylon-jdk
+
+      - name: Setup Environment
+        run: |
+          JDK_PATH=babylon-jdk/build/linux-x86_64-server-release/images/jdk
+          chmod -R +x $JDK_PATH/bin/
+          find $JDK_PATH/lib -type f -name "jspawnhelper" -exec chmod +x {} \;
+          find $JDK_PATH/lib -type f -name "*.so" -exec chmod +x {} \;
+          echo "JAVA_BABYLON_ROOT=$(pwd)/babylon-jdk" >> $GITHUB_ENV
+          chmod +x gradlew
+
+      - name: Cache Llama 3.2 1B Model
+        id: cache-llama
+        uses: actions/cache@v4
+        with:
+          path: Llama-3.2-1B-Instruct-f16.gguf
+          key: llama-3.2-1b-instruct-f16-gguf
+
+      - name: Download Llama 3.2 1B Instruct FP16
+        if: steps.cache-llama.outputs.cache-hit != 'true'
+        run: |
+          chmod +x scripts/download_llama_fp16.sh
+          ./scripts/download_llama_fp16.sh
+
+      - name: Build Project
+        run: |
+          export JAVA_HOME=$JAVA_BABYLON_ROOT/build/linux-x86_64-server-release/images/jdk
+          export PATH=$JAVA_HOME/bin:$PATH
+          ./gradlew build -x test --console=plain
+
+      - name: Run Daily Benchmarks
+        env:
+          CI: "true"
+          LLAMA_FP16_PATH: ${{ github.workspace }}/Llama-3.2-1B-Instruct-f16.gguf
+        run: |
+          export JAVA_HOME=$JAVA_BABYLON_ROOT/build/linux-x86_64-server-release/images/jdk
+          export PATH=$JAVA_HOME/bin:$PATH
+          ./gradlew benchmarkKernelAll --console=plain
+
+      - name: Upload Benchmark Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nightly-benchmarks
+          path: |
+            build/reports/tests/benchmarkKernelGEMV/
+            build/test-results/benchmarkKernelGEMV/
+            build/reports/tests/benchmarkKernelRMSNorm/
+            build/test-results/benchmarkKernelRMSNorm/
+            build/reports/tests/benchmarkKernelRoPE/
+            build/test-results/benchmarkKernelRoPE/
+            build/reports/tests/benchmarkKernelSiLU/
+            build/test-results/benchmarkKernelSiLU/
+            build/reports/tests/benchmarkKernelSoftmax/
+            build/test-results/benchmarkKernelSoftmax/
+            build/reports/tests/benchmarkKernelAttention/
+            build/test-results/benchmarkKernelAttention/
+            build/benchmark-results/results.tsv
           retention-days: 3

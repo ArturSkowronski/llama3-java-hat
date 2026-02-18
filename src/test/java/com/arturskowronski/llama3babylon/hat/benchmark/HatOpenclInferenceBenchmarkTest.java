@@ -1,12 +1,10 @@
-package com.arturskowronski.llama3babylon.hat.integration.benchmark;
+package com.arturskowronski.llama3babylon.hat.benchmark;
 
 import com.arturskowronski.llama3babylon.hat.BackendType;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
-@Tag("integration")
 @Tag("benchmark")
-@Tag("benchmark-opencl")
 public class HatOpenclInferenceBenchmarkTest {
 
     @Test
@@ -28,6 +26,5 @@ public class HatOpenclInferenceBenchmarkTest {
 
         var result = InferenceBenchmarkSupport.runHat(InferenceBenchmarkSupport.modelPathFromEnv(), BackendType.OPENCL, "HAT OpenCL GPU");
         InferenceBenchmarkSupport.recordResult(result);
-        InferenceBenchmarkSupport.gcPause();
     }
 }

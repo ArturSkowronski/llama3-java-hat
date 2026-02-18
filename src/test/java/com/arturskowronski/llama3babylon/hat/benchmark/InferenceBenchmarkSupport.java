@@ -1,4 +1,4 @@
-package com.arturskowronski.llama3babylon.hat.integration.benchmark;
+package com.arturskowronski.llama3babylon.hat.benchmark;
 
 import com.arturskowronski.llama3babylon.hat.BackendType;
 import com.arturskowronski.llama3babylon.hat.LlamaInference;
@@ -20,7 +20,6 @@ final class InferenceBenchmarkSupport {
 
     static final String SYSTEM_PROMPT = "You are a helpful assistant.";
     static final String USER_PROMPT = System.getenv().getOrDefault("BENCHMARK_USER_PROMPT", "Say hi");
-    // Keep benchmarks fast by default; override with BENCHMARK_MAX_TOKENS for deeper runs.
     static final int MAX_TOKENS = parsePositiveInt(System.getenv("BENCHMARK_MAX_TOKENS"), 8);
 
     private static final Path RESULTS_DIR = Paths.get(System.getProperty("user.dir"), "build", "benchmark-results");
@@ -135,29 +134,50 @@ final class InferenceBenchmarkSupport {
     }
 
     static void printResults(List<BenchmarkResult> results) {
+        boolean microBenchmark = results.stream().allMatch(r -> r.name != null && r.name.startsWith("Kernel Micro "));
+        String throughputLabel = microBenchmark ? "Ops/sec" : "Tokens/sec";
+        int backendWidth = 44;
+        int loadWidth = 10;
+        int inferWidth = 13;
+        int thrWidth = 15;
+
         System.out.println("\n");
-        System.out.println("╔══════════════════════════════════════════════════════════════════════╗");
-        System.out.println("║                    INFERENCE BENCHMARK RESULTS                      ║");
-        System.out.println("╠══════════════════════╦════════════╦═══════════════╦═════════════════╣");
-        System.out.println("║ Backend              ║ Model Load ║ Inference     ║ Tokens/sec      ║");
-        System.out.println("╠══════════════════════╬════════════╬═══════════════╬═════════════════╣");
+        System.out.println("╔" + "═".repeat(backendWidth + 2) + "╦" + "═".repeat(loadWidth + 2) + "╦" + "═".repeat(inferWidth + 2) + "╦" + "═".repeat(thrWidth + 2) + "╗");
+        System.out.printf("║ %-" + backendWidth + "s ║ %-" + loadWidth + "s ║ %-" + inferWidth + "s ║ %-" + thrWidth + "s ║%n",
+                "Backend", "Model Load", "Inference", throughputLabel);
+        System.out.println("╠" + "═".repeat(backendWidth + 2) + "╬" + "═".repeat(loadWidth + 2) + "╬" + "═".repeat(inferWidth + 2) + "╬" + "═".repeat(thrWidth + 2) + "╣");
 
         for (BenchmarkResult r : results) {
+            String backend = fit(r.name, backendWidth);
             if (r.error != null) {
-                System.out.printf("║ %-20s ║ %-10s ║ %-13s ║ %-15s ║%n",
-                        r.name,
+                System.out.printf("║ %-" + backendWidth + "s ║ %-" + loadWidth + "s ║ %-" + inferWidth + "s ║ %-" + thrWidth + "s ║%n",
+                        backend,
                         r.loadTimeSec >= 0 ? String.format("%.2fs", r.loadTimeSec) : "FAILED",
                         "FAILED",
-                        r.error.length() > 15 ? r.error.substring(0, 12) + "..." : r.error);
+                        fit(r.error, thrWidth));
             } else {
-                System.out.printf("║ %-20s ║ %8.2fs  ║ %10.2fs   ║ %10.2f tok/s ║%n",
-                        r.name, r.loadTimeSec, r.inferTimeSec, r.tokPerSec);
+                String throughput = microBenchmark
+                        ? String.format("%.2f ops/s", r.tokPerSec)
+                        : String.format("%.2f tok/s", r.tokPerSec);
+                System.out.printf("║ %-" + backendWidth + "s ║ %" + loadWidth + "s ║ %" + inferWidth + "s ║ %" + thrWidth + "s ║%n",
+                        backend,
+                        String.format("%.2fs", r.loadTimeSec),
+                        String.format("%.2fs", r.inferTimeSec),
+                        throughput);
             }
         }
 
-        System.out.println("╚══════════════════════╩════════════╩═══════════════╩═════════════════╝");
-        System.out.println("  Prompt: \"" + USER_PROMPT + "\" | Max tokens: " + MAX_TOKENS);
+        System.out.println("╚" + "═".repeat(backendWidth + 2) + "╩" + "═".repeat(loadWidth + 2) + "╩" + "═".repeat(inferWidth + 2) + "╩" + "═".repeat(thrWidth + 2) + "╝");
+        if (!microBenchmark) {
+            System.out.println("  Prompt: \"" + USER_PROMPT + "\" | Max tokens: " + MAX_TOKENS);
+        }
         System.out.println();
+    }
+
+    private static String fit(String value, int width) {
+        if (value == null) return "";
+        if (value.length() <= width) return value;
+        return value.substring(0, Math.max(0, width - 3)) + "...";
     }
 
     private static void writeTsvLine(BenchmarkResult r) {
@@ -204,15 +224,5 @@ final class InferenceBenchmarkSupport {
     interface InferenceSupplier {
         LlamaInference create() throws Exception;
     }
-
-    static void gcPause() {
-        System.gc();
-        try {
-            Thread.sleep(500);
-        } catch (InterruptedException ignored) {
-        }
-        System.gc();
-    }
-
     record BenchmarkResult(String name, double loadTimeSec, double inferTimeSec, double tokPerSec, String error) {}
 }

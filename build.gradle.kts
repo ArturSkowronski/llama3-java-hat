@@ -32,7 +32,8 @@ dependencies {
 
 tasks.test {
     useJUnitPlatform {
-        excludeTags("integration")
+        // Keep `test` unit-only. Integration/benchmark/regression tests are run by dedicated tasks/workflows.
+        excludeTags("plain-integration", "hat-integration", "benchmark", "regression")
     }
     jvmArgs(application.applicationDefaultJvmArgs)
 }
@@ -67,52 +68,127 @@ fun registerIntegrationTest(name: String, description: String, vararg tags: Stri
     }
 
 registerIntegrationTest("integrationTest",
-    "Runs all integration tests.", "integration")
+    "Runs all integration tests.", "plain-integration", "hat-integration")
 
-registerIntegrationTest("plainJavaIntegrationTest",
-    "Runs plain Java integration tests (no HAT).", "plain-java")
+registerIntegrationTest("plainIntegrationTest",
+    "Runs plain Java integration tests (no HAT).", "plain-integration")
 
-registerIntegrationTest("hatSequentialIntegrationTest",
-    "Runs HAT Sequential backend integration tests.", "hat-sequential")
+registerIntegrationTest("hatIntegrationTest",
+    "Runs HAT backend integration tests (JavaMT/OpenCL + backend-dispatch smoke).", "hat-integration")
 
-registerIntegrationTest("hatGpuIntegrationTest",
-    "Runs HAT GPU (OpenCL/JavaMT) integration tests.", "hat-gpu")
+fun registerBenchmarkTestByPattern(name: String, description: String, testPattern: String) =
+    tasks.register<Test>(name) {
+        this.description = description
+        group = "verification"
 
-registerIntegrationTest("benchmark",
-    "Runs inference benchmark across all backends.", "benchmark")
+        testClassesDirs = sourceSets["test"].output.classesDirs
+        classpath = sourceSets["test"].runtimeClasspath
 
-registerIntegrationTest("benchmarkPlain",
-    "Runs inference benchmark: Plain Java only.", "benchmark-plain")
+        useJUnitPlatform {
+            includeTags("benchmark")
+            excludeTags("regression")
+        }
+        filter {
+            includeTestsMatching(testPattern)
+        }
 
-registerIntegrationTest("benchmarkHatSeq",
-    "Runs inference benchmark: HAT Java Sequential only.", "benchmark-hat-seq")
+        jvmArgs(application.applicationDefaultJvmArgs)
+        jvmArgs("-Xmx5g")
+        maxParallelForks = 1
+        forkEvery = 1
+        failFast = false
+        testLogging {
+            showStandardStreams = true
+            events("started", "passed", "failed")
+        }
 
-registerIntegrationTest("benchmarkHatMt",
-    "Runs inference benchmark: HAT Java MT only.", "benchmark-hat-mt")
+        System.getenv("LLAMA_FP16_PATH")?.let { environment("LLAMA_FP16_PATH", it) }
+        System.getenv("RUN_OPENCL_BENCHMARKS")?.let { environment("RUN_OPENCL_BENCHMARKS", it) }
+    }
 
-registerIntegrationTest("benchmarkOpencl",
-    "Runs inference benchmark: HAT OpenCL only (requires RUN_OPENCL_BENCHMARKS=true).", "benchmark-opencl")
+registerBenchmarkTestByPattern(
+    "benchmarkKernel",
+    "Runs per-kernel benchmark comparison across Plain Java, HAT Java Seq, HAT Java MT and HAT OpenCL.",
+    "com.arturskowronski.llama3babylon.hat.benchmark.KernelModeInferenceBenchmarkTest"
+)
 
-registerIntegrationTest("benchmarkKernel",
-    "Runs per-kernel benchmark comparison across Plain Java, HAT Java Seq, HAT Java MT and HAT OpenCL.", "benchmark-kernel")
+registerBenchmarkTestByPattern(
+    "benchmarkKernelGEMV",
+    "Runs per-kernel benchmark comparison for GEMV.",
+    "com.arturskowronski.llama3babylon.hat.benchmark.KernelModeInferenceBenchmarkTest.benchmarkGEMVAcrossModes"
+)
 
-registerIntegrationTest("benchmarkKernelGEMV",
-    "Runs per-kernel benchmark comparison for GEMV.", "benchmark-kernel-gemv")
+registerBenchmarkTestByPattern(
+    "benchmarkKernelRMSNorm",
+    "Runs per-kernel benchmark comparison for RMSNorm.",
+    "com.arturskowronski.llama3babylon.hat.benchmark.KernelModeInferenceBenchmarkTest.benchmarkRMSNormAcrossModes"
+)
 
-registerIntegrationTest("benchmarkKernelRMSNorm",
-    "Runs per-kernel benchmark comparison for RMSNorm.", "benchmark-kernel-rmsnorm")
+registerBenchmarkTestByPattern(
+    "benchmarkKernelRoPE",
+    "Runs per-kernel benchmark comparison for RoPE.",
+    "com.arturskowronski.llama3babylon.hat.benchmark.KernelModeInferenceBenchmarkTest.benchmarkRoPEAcrossModes"
+)
 
-registerIntegrationTest("benchmarkKernelRoPE",
-    "Runs per-kernel benchmark comparison for RoPE.", "benchmark-kernel-rope")
+registerBenchmarkTestByPattern(
+    "benchmarkKernelSiLU",
+    "Runs per-kernel benchmark comparison for SiLU.",
+    "com.arturskowronski.llama3babylon.hat.benchmark.KernelModeInferenceBenchmarkTest.benchmarkSiLUAcrossModes"
+)
 
-registerIntegrationTest("benchmarkKernelSiLU",
-    "Runs per-kernel benchmark comparison for SiLU.", "benchmark-kernel-silu")
+registerBenchmarkTestByPattern(
+    "benchmarkKernelSoftmax",
+    "Runs per-kernel benchmark comparison for Softmax.",
+    "com.arturskowronski.llama3babylon.hat.benchmark.KernelModeInferenceBenchmarkTest.benchmarkSoftmaxAcrossModes"
+)
 
-registerIntegrationTest("benchmarkKernelSoftmax",
-    "Runs per-kernel benchmark comparison for Softmax.", "benchmark-kernel-softmax")
+registerBenchmarkTestByPattern(
+    "benchmarkKernelAttention",
+    "Runs per-kernel benchmark comparison for Attention.",
+    "com.arturskowronski.llama3babylon.hat.benchmark.KernelModeInferenceBenchmarkTest.benchmarkAttentionAcrossModes"
+)
 
-registerIntegrationTest("benchmarkKernelAttention",
-    "Runs per-kernel benchmark comparison for Attention.", "benchmark-kernel-attention")
+registerBenchmarkTestByPattern(
+    "benchmarkMicroKernelAll",
+    "Runs micro-benchmarks (kernel math only, no end-to-end inference) for all kernels and modes.",
+    "com.arturskowronski.llama3babylon.hat.benchmark.KernelMicroBenchmarkTest"
+)
+
+registerBenchmarkTestByPattern(
+    "benchmarkMicroGEMV",
+    "Runs micro-benchmark for GEMV across Plain/Seq/MT/OpenCL.",
+    "com.arturskowronski.llama3babylon.hat.benchmark.KernelMicroBenchmarkTest.benchmarkMicroGEMV"
+)
+
+registerBenchmarkTestByPattern(
+    "benchmarkMicroRMSNorm",
+    "Runs micro-benchmark for RMSNorm across Plain/Seq/MT/OpenCL.",
+    "com.arturskowronski.llama3babylon.hat.benchmark.KernelMicroBenchmarkTest.benchmarkMicroRMSNorm"
+)
+
+registerBenchmarkTestByPattern(
+    "benchmarkMicroRoPE",
+    "Runs micro-benchmark for RoPE across Plain/Seq/MT/OpenCL.",
+    "com.arturskowronski.llama3babylon.hat.benchmark.KernelMicroBenchmarkTest.benchmarkMicroRoPE"
+)
+
+registerBenchmarkTestByPattern(
+    "benchmarkMicroSiLU",
+    "Runs micro-benchmark for SiLU across Plain/Seq/MT/OpenCL.",
+    "com.arturskowronski.llama3babylon.hat.benchmark.KernelMicroBenchmarkTest.benchmarkMicroSiLU"
+)
+
+registerBenchmarkTestByPattern(
+    "benchmarkMicroSoftmax",
+    "Runs micro-benchmark for Softmax across Plain/Seq/MT/OpenCL.",
+    "com.arturskowronski.llama3babylon.hat.benchmark.KernelMicroBenchmarkTest.benchmarkMicroSoftmax"
+)
+
+registerBenchmarkTestByPattern(
+    "benchmarkMicroAttention",
+    "Runs micro-benchmark for Attention across Plain/Seq/MT/OpenCL.",
+    "com.arturskowronski.llama3babylon.hat.benchmark.KernelMicroBenchmarkTest.benchmarkMicroAttention"
+)
 
 tasks.register("benchmarkAll") {
     description = "Runs all benchmark shards (Plain, HAT seq, HAT mt, OpenCL)."
@@ -133,8 +209,41 @@ tasks.register("benchmarkKernelAll") {
     )
 }
 
-registerIntegrationTest("openclBugTest",
-    "Reproduces OpenCL FFI IllegalAccessError on ComputeEntrypoint.lowered.", "opencl-bug")
+tasks.register("benchmarkMicroAll") {
+    description = "Runs all kernel micro-benchmarks (math-only)."
+    group = "verification"
+    dependsOn(
+        "benchmarkMicroGEMV",
+        "benchmarkMicroRMSNorm",
+        "benchmarkMicroRoPE",
+        "benchmarkMicroSiLU",
+        "benchmarkMicroSoftmax",
+        "benchmarkMicroAttention"
+    )
+}
+
+tasks.register<Test>("regressionTest") {
+    description = "Runs regression-only tests."
+    group = "verification"
+
+    testClassesDirs = sourceSets["test"].output.classesDirs
+    classpath = sourceSets["test"].runtimeClasspath
+
+    useJUnitPlatform {
+        includeTags("regression")
+    }
+    jvmArgs(application.applicationDefaultJvmArgs)
+    jvmArgs("-Xmx5g")
+    maxParallelForks = 1
+    forkEvery = 1
+    failFast = false
+    testLogging {
+        showStandardStreams = true
+        events("started", "passed", "failed")
+    }
+
+    System.getenv("LLAMA_FP16_PATH")?.let { environment("LLAMA_FP16_PATH", it) }
+}
 
 java {
     toolchain {

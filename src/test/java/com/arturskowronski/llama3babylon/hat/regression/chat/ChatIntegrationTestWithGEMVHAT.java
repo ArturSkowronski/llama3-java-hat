@@ -16,9 +16,7 @@ import java.util.Set;
  * Integration test for GEMV kernel using HAT @Reflect dispatch in real 16-layer inference.
  * Enables ONLY GEMV for HAT dispatch. Most intensive kernel: ~113 GEMV operations per token.
  */
-@Tag("integration")
 @Tag("regression")
-@Tag("hat-sequential")
 public class ChatIntegrationTestWithGEMVHAT {
 
     @Test
