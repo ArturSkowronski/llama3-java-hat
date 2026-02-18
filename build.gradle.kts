@@ -50,6 +50,13 @@ fun registerIntegrationTest(name: String, description: String, vararg tags: Stri
         }
         jvmArgs(application.applicationDefaultJvmArgs)
 
+        // Forward test output to Gradle console so CI sees activity
+        // (prevents GitHub Actions no-output timeout during long inference)
+        testLogging {
+            showStandardStreams = true
+            events("started", "passed", "failed")
+        }
+
         System.getenv("TINY_LLAMA_PATH")?.let { environment("TINY_LLAMA_PATH", it) }
         System.getenv("LLAMA_FP16_PATH")?.let { environment("LLAMA_FP16_PATH", it) }
     }
