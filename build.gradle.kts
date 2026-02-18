@@ -69,6 +69,9 @@ registerIntegrationTest("hatGpuIntegrationTest",
 registerIntegrationTest("benchmark",
     "Runs inference benchmark across all backends.", "benchmark")
 
+registerIntegrationTest("openclBugTest",
+    "Reproduces OpenCL FFI IllegalAccessError on ComputeEntrypoint.lowered.", "opencl-bug")
+
 java {
     toolchain {
         languageVersion.set(JavaLanguageVersion.of(26))
