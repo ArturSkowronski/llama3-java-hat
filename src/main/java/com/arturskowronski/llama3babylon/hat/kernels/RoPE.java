@@ -7,6 +7,9 @@ import hat.NDRange;
 import hat.buffer.F32Array;
 import jdk.incubator.code.Reflect;
 
+import static optkl.ifacemapper.MappableIface.RO;
+import static optkl.ifacemapper.MappableIface.RW;
+
 /**
  * RoPE (Rotary Positional Embedding) kernel for Llama 3.2 1B Instruct.
  *
@@ -49,7 +52,7 @@ public class RoPE implements IRoPE {
     }
 
     @Reflect
-    public static void ropeKernel(KernelContext kc, F32Array vec, int pos, int headDim, float theta) {
+    public static void ropeKernel(@RO KernelContext kc, @RW F32Array vec, @RO int pos, @RO int headDim, @RO float theta) {
         int h = kc.gix; // head index
         int headOffset = h * headDim;
 
@@ -68,7 +71,7 @@ public class RoPE implements IRoPE {
     }
 
     @Reflect
-    public static void dispatchRoPE(ComputeContext cc, F32Array vec, int pos, int numHeads, int headDim, float theta) {
+    public static void dispatchRoPE(@RO ComputeContext cc, @RW F32Array vec, @RO int pos, @RO int numHeads, @RO int headDim, @RO float theta) {
         cc.dispatchKernel(NDRange.of1D(numHeads), kc -> ropeKernel(kc, vec, pos, headDim, theta));
     }
 }

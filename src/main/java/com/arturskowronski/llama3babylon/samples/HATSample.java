@@ -6,18 +6,20 @@ import hat.ComputeContext;
 import hat.KernelContext;
 import hat.NDRange;
 import hat.buffer.S32Array;
+import static optkl.ifacemapper.MappableIface.RO;
+import static optkl.ifacemapper.MappableIface.WO;
 import java.lang.invoke.MethodHandles;
 
 public class HATSample {
 
     @Reflect
-    public static void vectorAdd(KernelContext kc, S32Array a, S32Array b, S32Array c) {
+    public static void vectorAdd(@RO KernelContext kc, @RO S32Array a, @RO S32Array b, @WO S32Array c) {
         int i = kc.gix;
         c.array(i, a.array(i) + b.array(i));
     }
 
     @Reflect
-    public static void computeAdd(ComputeContext cc, S32Array a, S32Array b, S32Array c, int size) {
+    public static void computeAdd(@RO ComputeContext cc, @RO S32Array a, @RO S32Array b, @WO S32Array c, @RO int size) {
         System.out.println("Inside computeAdd");
         cc.dispatchKernel(NDRange.of1D(size), kcx -> vectorAdd(kcx, a, b, c));
     }

@@ -9,6 +9,9 @@ import jdk.incubator.code.Reflect;
 
 import java.lang.invoke.MethodHandles;
 
+import static optkl.ifacemapper.MappableIface.RO;
+import static optkl.ifacemapper.MappableIface.WO;
+
 /**
  * Attention kernel for Llama 3.2 1B Instruct (FP16).
  *
@@ -45,7 +48,7 @@ public class Attention implements IAttention {
     }
 
     @Reflect
-    public static void scoresKernel(KernelContext kc, F32Array query, F32Array keys, F32Array scores, int headDim, float scale) {
+    public static void scoresKernel(@RO KernelContext kc, @RO F32Array query, @RO F32Array keys, @WO F32Array scores, @RO int headDim, @RO float scale) {
         int t = kc.gix; // target token index in sequence
         float sum = 0.0f;
         int keyOffset = t * headDim;
@@ -56,7 +59,7 @@ public class Attention implements IAttention {
     }
 
     @Reflect
-    public static void dispatchScores(ComputeContext cc, F32Array query, F32Array keys, F32Array scores, int seqLen, int headDim, float scale) {
+    public static void dispatchScores(@RO ComputeContext cc, @RO F32Array query, @RO F32Array keys, @WO F32Array scores, @RO int seqLen, @RO int headDim, @RO float scale) {
         cc.dispatchKernel(NDRange.of1D(seqLen), kc -> scoresKernel(kc, query, keys, scores, headDim, scale));
     }
 
@@ -76,7 +79,7 @@ public class Attention implements IAttention {
     }
 
     @Reflect
-    public static void valuesKernel(KernelContext kc, F32Array scores, F32Array values, F32Array output, int seqLen, int headDim) {
+    public static void valuesKernel(@RO KernelContext kc, @RO F32Array scores, @RO F32Array values, @WO F32Array output, @RO int seqLen, @RO int headDim) {
         int i = kc.gix; // index in head_dim
         float sum = 0.0f;
         for (int t = 0; t < seqLen; t++) {
@@ -86,7 +89,7 @@ public class Attention implements IAttention {
     }
 
     @Reflect
-    public static void dispatchValues(ComputeContext cc, F32Array scores, F32Array values, F32Array output, int seqLen, int headDim) {
+    public static void dispatchValues(@RO ComputeContext cc, @RO F32Array scores, @RO F32Array values, @WO F32Array output, @RO int seqLen, @RO int headDim) {
         cc.dispatchKernel(NDRange.of1D(headDim), kc -> valuesKernel(kc, scores, values, output, seqLen, headDim));
     }
 
