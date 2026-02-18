@@ -60,14 +60,14 @@ public class RoPEHAT implements IRoPE {
         for (int i = 0; i < headDim; i += 2) {
             float freq = (float) (1.0 / Math.pow(theta, (double) i / headDim));
             float val = pos * freq;
-            float cos = (float) Math.cos(val);
-            float sin = (float) Math.sin(val);
+            float cosVal = (float) Math.cos(val);
+            float sinVal = (float) Math.sin(val);
 
             float v0 = vec.array(headOffset + i);
             float v1 = vec.array(headOffset + i + 1);
 
-            vec.array(headOffset + i, v0 * cos - v1 * sin);
-            vec.array(headOffset + i + 1, v0 * sin + v1 * cos);
+            vec.array(headOffset + i, v0 * cosVal - v1 * sinVal);
+            vec.array(headOffset + i + 1, v0 * sinVal + v1 * cosVal);
         }
     }
 }
