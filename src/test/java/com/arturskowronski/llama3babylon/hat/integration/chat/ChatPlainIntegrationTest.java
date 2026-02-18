@@ -15,7 +15,7 @@ import java.nio.file.Paths;
  * Runs with ALL kernels in plain-Java mode (no HAT @Reflect dispatch).
  */
 @Tag("plain-integration")
-public class ChatJavaPlainIntegrationTest {
+public class ChatPlainIntegrationTest {
 
     @Test
     @EnabledIfEnvironmentVariable(named = "LLAMA_FP16_PATH", matches = ".*")
