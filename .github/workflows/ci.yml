@@ -113,6 +113,13 @@ jobs:
           name: babylon-jdk
           path: babylon-jdk
 
+      - name: Install OpenCL CPU Runtime (PoCL)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y pocl-opencl-icd ocl-icd-opencl-dev
+          echo "=== Installed OpenCL platforms ==="
+          clinfo --list 2>/dev/null || echo "clinfo not available, but PoCL ICD is installed"
+
       - name: Setup Environment
         run: |
           echo "=== Debug: Listing artifact contents ==="
