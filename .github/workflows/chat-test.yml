@@ -7,6 +7,10 @@ on:
       - '**.md'
       - 'docs/**'
   workflow_dispatch:
+
+concurrency:
+  group: chat-test-${{ github.head_ref || github.ref }}
+  cancel-in-progress: false
     inputs:
       test_scope:
         description: 'Which tests to run'
