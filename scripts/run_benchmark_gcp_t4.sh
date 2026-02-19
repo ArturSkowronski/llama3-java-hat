@@ -193,18 +193,45 @@ mkdir -p "$WORKDIR"
 
 sudo apt-get update
 sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
-  git curl build-essential autoconf \
+  git curl build-essential autoconf unzip zip \
   libx11-dev libxext-dev libxrender-dev libxrandr-dev libxtst-dev libxt-dev \
-  libcups2-dev libasound2-dev libfontconfig1-dev clinfo
+  libcups2-dev libasound2-dev libfontconfig1-dev clinfo \
+  ubuntu-drivers-common pciutils
 
 echo "Checking NVIDIA driver availability..."
-for _ in {1..30}; do
-  if nvidia-smi >/dev/null 2>&1; then
-    break
+wait_for_nvidia() {
+  local attempts="$1"
+  local i
+  for ((i=1; i<=attempts; i++)); do
+    if nvidia-smi >/dev/null 2>&1; then
+      return 0
+    fi
+    sleep 10
+  done
+  return 1
+}
+
+# First wait: metadata-driven install on GCE can take several minutes.
+if ! wait_for_nvidia 60; then
+  echo "NVIDIA driver is not ready after waiting 10 minutes. Trying fallback install..."
+
+  if ! lspci | grep -qi "NVIDIA"; then
+    echo "NVIDIA GPU not detected by lspci; cannot continue." >&2
+    exit 1
   fi
-  sleep 10
-done
-nvidia-smi || true
+
+  sudo DEBIAN_FRONTEND=noninteractive ubuntu-drivers autoinstall || true
+  sudo modprobe nvidia || true
+
+  if ! wait_for_nvidia 60; then
+    echo "NVIDIA driver is still not ready after fallback install." >&2
+    ubuntu-drivers list || true
+    lsmod | grep -i nvidia || true
+    exit 1
+  fi
+fi
+
+nvidia-smi
 clinfo | sed -n '1,80p' || true
 
 if [[ ! -d "$WORKDIR/.git" ]]; then
@@ -214,6 +241,29 @@ cd "$WORKDIR"
 git fetch origin
 git checkout "$BRANCH"
 git pull --ff-only origin "$BRANCH"
+
+echo "Ensuring Boot JDK 25 is available..."
+need_boot_jdk="true"
+if command -v javac >/dev/null 2>&1; then
+  if javac -version 2>&1 | grep -q "25"; then
+    need_boot_jdk="false"
+  fi
+fi
+
+if [[ "${need_boot_jdk}" == "true" ]]; then
+  BOOT_JDK_DIR="$HOME/boot-jdk-25"
+  if [[ ! -x "$BOOT_JDK_DIR/bin/javac" ]]; then
+    TMP_BOOT_JDK_TGZ="$(mktemp)"
+    curl -fsSL -o "$TMP_BOOT_JDK_TGZ" \
+      "https://api.adoptium.net/v3/binary/latest/25/ga/linux/x64/jdk/hotspot/normal/eclipse"
+    rm -rf "$BOOT_JDK_DIR"
+    mkdir -p "$BOOT_JDK_DIR"
+    tar -xzf "$TMP_BOOT_JDK_TGZ" -C "$BOOT_JDK_DIR" --strip-components=1
+    rm -f "$TMP_BOOT_JDK_TGZ"
+  fi
+  export JAVA_HOME="$BOOT_JDK_DIR"
+  export PATH="$JAVA_HOME/bin:$PATH"
+fi
 
 if [[ ! -d "$HOME/babylon-jdk" ]]; then
   git clone --depth 1 --branch code-reflection https://github.com/openjdk/babylon "$HOME/babylon-jdk"
@@ -260,9 +310,11 @@ tar -C "$WORKDIR/build" -czf "$WORKDIR/build/benchmark-results/gcp-benchmark-art
 EOF_REMOTE
 
 echo "Running benchmark on remote instance..."
-gcloud compute scp "${REMOTE_SCRIPT}" "${INSTANCE}:/tmp/run-benchmark.sh" --project "${PROJECT}" --zone "${ZONE}" >/dev/null
+REMOTE_SCRIPT_NAME="run-benchmark-${RANDOM}-$$.sh"
+REMOTE_SCRIPT_PATH="~/${REMOTE_SCRIPT_NAME}"
+gcloud compute scp "${REMOTE_SCRIPT}" "${INSTANCE}:${REMOTE_SCRIPT_PATH}" --project "${PROJECT}" --zone "${ZONE}" >/dev/null
 gcloud compute ssh "${INSTANCE}" --project "${PROJECT}" --zone "${ZONE}" \
-  --command "bash /tmp/run-benchmark.sh '$REPO_URL' '$BRANCH' '$TASK' '$RUN_OPENCL_BENCHMARKS' '$BENCHMARK_ITERS' '$BENCHMARK_WARMUP_ITERS' '$WORKDIR'"
+  --command "bash ${REMOTE_SCRIPT_PATH} '$REPO_URL' '$BRANCH' '$TASK' '$RUN_OPENCL_BENCHMARKS' '$BENCHMARK_ITERS' '$BENCHMARK_WARMUP_ITERS' '$WORKDIR'; rc=\$?; rm -f ${REMOTE_SCRIPT_PATH}; exit \$rc"
 
 mkdir -p "${OUTPUT_DIR}"
 STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
@@ -270,13 +322,13 @@ STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
 if [[ "${DOWNLOAD_RESULTS}" == "true" ]]; then
   echo "Downloading benchmark TSV and artifacts..."
   gcloud compute scp \
-    "${INSTANCE}:${WORKDIR/#\~/\$HOME}/build/benchmark-results/results.tsv" \
+    "${INSTANCE}:${WORKDIR}/build/benchmark-results/results.tsv" \
     "${OUTPUT_DIR}/results-${INSTANCE}-${STAMP}.tsv" \
     --project "${PROJECT}" \
     --zone "${ZONE}" || true
 
   gcloud compute scp \
-    "${INSTANCE}:${WORKDIR/#\~/\$HOME}/build/benchmark-results/gcp-benchmark-artifacts.tgz" \
+    "${INSTANCE}:${WORKDIR}/build/benchmark-results/gcp-benchmark-artifacts.tgz" \
     "${OUTPUT_DIR}/artifacts-${INSTANCE}-${STAMP}.tgz" \
     --project "${PROJECT}" \
     --zone "${ZONE}" || true
