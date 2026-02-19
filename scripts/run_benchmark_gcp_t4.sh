@@ -260,9 +260,11 @@ tar -C "$WORKDIR/build" -czf "$WORKDIR/build/benchmark-results/gcp-benchmark-art
 EOF_REMOTE
 
 echo "Running benchmark on remote instance..."
-gcloud compute scp "${REMOTE_SCRIPT}" "${INSTANCE}:/tmp/run-benchmark.sh" --project "${PROJECT}" --zone "${ZONE}" >/dev/null
+REMOTE_SCRIPT_NAME="run-benchmark-${RANDOM}-$$.sh"
+REMOTE_SCRIPT_PATH="~/${REMOTE_SCRIPT_NAME}"
+gcloud compute scp "${REMOTE_SCRIPT}" "${INSTANCE}:${REMOTE_SCRIPT_PATH}" --project "${PROJECT}" --zone "${ZONE}" >/dev/null
 gcloud compute ssh "${INSTANCE}" --project "${PROJECT}" --zone "${ZONE}" \
-  --command "bash /tmp/run-benchmark.sh '$REPO_URL' '$BRANCH' '$TASK' '$RUN_OPENCL_BENCHMARKS' '$BENCHMARK_ITERS' '$BENCHMARK_WARMUP_ITERS' '$WORKDIR'"
+  --command "bash ${REMOTE_SCRIPT_PATH} '$REPO_URL' '$BRANCH' '$TASK' '$RUN_OPENCL_BENCHMARKS' '$BENCHMARK_ITERS' '$BENCHMARK_WARMUP_ITERS' '$WORKDIR'; rm -f ${REMOTE_SCRIPT_PATH}"
 
 mkdir -p "${OUTPUT_DIR}"
 STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
