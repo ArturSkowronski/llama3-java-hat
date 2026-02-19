@@ -193,18 +193,25 @@ mkdir -p "$WORKDIR"
 
 sudo apt-get update
 sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
-  git curl build-essential autoconf unzip \
+  git curl build-essential autoconf unzip zip \
   libx11-dev libxext-dev libxrender-dev libxrandr-dev libxtst-dev libxt-dev \
   libcups2-dev libasound2-dev libfontconfig1-dev clinfo
 
 echo "Checking NVIDIA driver availability..."
-for _ in {1..30}; do
+# GCE driver install via instance metadata can take several minutes.
+for _ in {1..60}; do
   if nvidia-smi >/dev/null 2>&1; then
     break
   fi
   sleep 10
 done
-nvidia-smi || true
+
+if ! nvidia-smi >/dev/null 2>&1; then
+  echo "NVIDIA driver is not ready after waiting 10 minutes." >&2
+  exit 1
+fi
+
+nvidia-smi
 clinfo | sed -n '1,80p' || true
 
 if [[ ! -d "$WORKDIR/.git" ]]; then
