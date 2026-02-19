@@ -195,20 +195,40 @@ sudo apt-get update
 sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
   git curl build-essential autoconf unzip zip \
   libx11-dev libxext-dev libxrender-dev libxrandr-dev libxtst-dev libxt-dev \
-  libcups2-dev libasound2-dev libfontconfig1-dev clinfo
+  libcups2-dev libasound2-dev libfontconfig1-dev clinfo \
+  ubuntu-drivers-common pciutils
 
 echo "Checking NVIDIA driver availability..."
-# GCE driver install via instance metadata can take several minutes.
-for _ in {1..60}; do
-  if nvidia-smi >/dev/null 2>&1; then
-    break
-  fi
-  sleep 10
-done
+wait_for_nvidia() {
+  local attempts="$1"
+  local i
+  for ((i=1; i<=attempts; i++)); do
+    if nvidia-smi >/dev/null 2>&1; then
+      return 0
+    fi
+    sleep 10
+  done
+  return 1
+}
 
-if ! nvidia-smi >/dev/null 2>&1; then
-  echo "NVIDIA driver is not ready after waiting 10 minutes." >&2
-  exit 1
+# First wait: metadata-driven install on GCE can take several minutes.
+if ! wait_for_nvidia 60; then
+  echo "NVIDIA driver is not ready after waiting 10 minutes. Trying fallback install..."
+
+  if ! lspci | grep -qi "NVIDIA"; then
+    echo "NVIDIA GPU not detected by lspci; cannot continue." >&2
+    exit 1
+  fi
+
+  sudo DEBIAN_FRONTEND=noninteractive ubuntu-drivers autoinstall || true
+  sudo modprobe nvidia || true
+
+  if ! wait_for_nvidia 60; then
+    echo "NVIDIA driver is still not ready after fallback install." >&2
+    ubuntu-drivers list || true
+    lsmod | grep -i nvidia || true
+    exit 1
+  fi
 fi
 
 nvidia-smi
