@@ -125,6 +125,13 @@ jobs:
           chmod +x scripts/download_llama_fp16.sh
           ./scripts/download_llama_fp16.sh
 
+      - name: Install PoCL (CPU OpenCL)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y pocl-opencl-icd ocl-icd-libopencl1 clinfo
+          echo "--- OpenCL devices ---"
+          clinfo --list || true
+
       - name: Build Project
         run: |
           export JAVA_HOME=$JAVA_BABYLON_ROOT/build/linux-x86_64-server-release/images/jdk
