@@ -134,6 +134,33 @@
           "error": "ServiceConfigurationError"
         }
       }
+    },
+    {
+      "date": "2026-02-19T15:43:36+01:00",
+      "commit": "b277b3dd0acdb120f399a938825b0e1ca486b760",
+      "results": {
+        "Plain Java": {
+          "load_sec": 9.276655025,
+          "infer_sec": 302.014999856,
+          "tok_per_sec": 0.026488750571376854
+        },
+        "HAT Java Sequential": {
+          "load_sec": 9.087319702,
+          "infer_sec": 412.78845717,
+          "tok_per_sec": 0.0193803868810831
+        },
+        "HAT Java MT": {
+          "load_sec": 9.098301014,
+          "infer_sec": 163.094842058,
+          "tok_per_sec": 0.04905121399949012
+        },
+        "HAT OpenCL GPU": {
+          "load_sec": -1.0,
+          "infer_sec": -1,
+          "tok_per_sec": -1,
+          "error": "SKIPPED: No runtime available"
+        }
+      }
     }
   ]
 }
