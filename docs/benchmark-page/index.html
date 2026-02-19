@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>llama3-java-hat Benchmarks</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, monospace;
+            background: #0d1117;
+            color: #c9d1d9;
+            padding: 2rem;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        h1 {
+            color: #58a6ff;
+            font-size: 1.8rem;
+            margin-bottom: 0.3rem;
+        }
+        .subtitle {
+            color: #8b949e;
+            font-size: 0.9rem;
+            margin-bottom: 1.5rem;
+        }
+        .disclaimer {
+            background: #161b22;
+            border: 1px solid #f0883e;
+            border-radius: 6px;
+            padding: 0.8rem 1rem;
+            margin-bottom: 1.5rem;
+            font-size: 0.85rem;
+            color: #f0883e;
+        }
+        .chart-container {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        .chart-container canvas {
+            max-height: 400px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+        }
+        th, td {
+            padding: 0.6rem 0.8rem;
+            text-align: left;
+            border-bottom: 1px solid #21262d;
+        }
+        th {
+            background: #161b22;
+            color: #58a6ff;
+            font-weight: 600;
+            position: sticky;
+            top: 0;
+        }
+        tr:hover { background: #161b22; }
+        td.num { text-align: right; font-variant-numeric: tabular-nums; }
+        .backend-plain { color: #7ee787; }
+        .backend-seq { color: #79c0ff; }
+        .backend-mt { color: #d2a8ff; }
+        .backend-opencl { color: #ffa657; }
+        .error { color: #f85149; }
+        .no-data {
+            text-align: center;
+            padding: 3rem;
+            color: #8b949e;
+            font-size: 1.1rem;
+        }
+        footer {
+            margin-top: 2rem;
+            text-align: center;
+            color: #484f58;
+            font-size: 0.8rem;
+        }
+        footer a { color: #58a6ff; text-decoration: none; }
+    </style>
+</head>
+<body>
+    <h1>llama3-java-hat Inference Benchmarks</h1>
+    <p class="subtitle">Llama 3.2 1B Instruct (FP16) &mdash; Tokens/sec across HAT backends</p>
+
+    <div class="disclaimer">
+        These benchmarks are for fun only. Results are collected on GitHub Actions runners
+        with variable performance characteristics. Do not use these numbers for serious
+        performance comparisons.
+    </div>
+
+    <div class="chart-container">
+        <canvas id="benchmarkChart"></canvas>
+    </div>
+
+    <div id="tableContainer"></div>
+
+    <footer>
+        <a href="https://github.com/ArturSkowronski/llama3-java-hat">llama3-java-hat</a>
+        &mdash; Project Babylon HAT inference
+    </footer>
+
+    <!-- DATA_PLACEHOLDER: replaced by CI with actual benchmark data -->
+    <script>window.BENCHMARK_DATA = {"runs":[]};</script>
+
+    <script>
+    (function() {
+        const data = window.BENCHMARK_DATA;
+        const runs = data.runs || [];
+
+        if (runs.length === 0) {
+            document.getElementById('tableContainer').innerHTML =
+                '<div class="no-data">No benchmark data yet. Run the benchmark-pages workflow to populate.</div>';
+            return;
+        }
+
+        const backends = [
+            { key: 'Plain Java', color: '#7ee787', cssClass: 'backend-plain' },
+            { key: 'HAT Java Sequential', color: '#79c0ff', cssClass: 'backend-seq' },
+            { key: 'HAT Java MT', color: '#d2a8ff', cssClass: 'backend-mt' },
+            { key: 'HAT OpenCL GPU', color: '#ffa657', cssClass: 'backend-opencl' }
+        ];
+
+        // --- Chart ---
+        const labels = runs.map(r => {
+            const d = new Date(r.date);
+            return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+                + '\n' + r.commit.substring(0, 7);
+        });
+
+        const datasets = backends.map(b => ({
+            label: b.key,
+            data: runs.map(r => {
+                const res = r.results[b.key];
+                return (res && !res.error && res.tok_per_sec > 0) ? res.tok_per_sec : null;
+            }),
+            borderColor: b.color,
+            backgroundColor: b.color + '33',
+            tension: 0.3,
+            pointRadius: 4,
+            pointHoverRadius: 6,
+            spanGaps: true
+        }));
+
+        new Chart(document.getElementById('benchmarkChart'), {
+            type: 'line',
+            data: { labels, datasets },
+            options: {
+                responsive: true,
+                interaction: { mode: 'index', intersect: false },
+                plugins: {
+                    legend: {
+                        labels: { color: '#c9d1d9', usePointStyle: true, pointStyle: 'circle' }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: ctx => ctx.dataset.label + ': ' + (ctx.parsed.y != null ? ctx.parsed.y.toFixed(2) + ' tok/s' : 'N/A')
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        ticks: { color: '#8b949e', maxRotation: 45 },
+                        grid: { color: '#21262d' }
+                    },
+                    y: {
+                        title: { display: true, text: 'Tokens / sec', color: '#8b949e' },
+                        ticks: { color: '#8b949e' },
+                        grid: { color: '#21262d' },
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+
+        // --- Table ---
+        let html = '<table><thead><tr>'
+            + '<th>Date</th><th>Commit</th><th>Backend</th>'
+            + '<th style="text-align:right">Load (s)</th>'
+            + '<th style="text-align:right">Inference (s)</th>'
+            + '<th style="text-align:right">Tok/sec</th>'
+            + '<th>Status</th></tr></thead><tbody>';
+
+        // Most recent first
+        for (let i = runs.length - 1; i >= 0; i--) {
+            const run = runs[i];
+            const dateStr = new Date(run.date).toLocaleString('en-US', {
+                year: 'numeric', month: 'short', day: 'numeric',
+                hour: '2-digit', minute: '2-digit'
+            });
+            const commitShort = run.commit.substring(0, 7);
+
+            for (const b of backends) {
+                const res = run.results[b.key];
+                if (!res) {
+                    html += '<tr><td>' + dateStr + '</td><td><code>' + commitShort + '</code></td>'
+                        + '<td class="' + b.cssClass + '">' + b.key + '</td>'
+                        + '<td class="num">-</td><td class="num">-</td><td class="num">-</td>'
+                        + '<td class="error">No data</td></tr>';
+                    continue;
+                }
+                if (res.error) {
+                    html += '<tr><td>' + dateStr + '</td><td><code>' + commitShort + '</code></td>'
+                        + '<td class="' + b.cssClass + '">' + b.key + '</td>'
+                        + '<td class="num">' + (res.load_sec >= 0 ? res.load_sec.toFixed(2) : '-') + '</td>'
+                        + '<td class="num">-</td><td class="num">-</td>'
+                        + '<td class="error">' + res.error + '</td></tr>';
+                    continue;
+                }
+                html += '<tr><td>' + dateStr + '</td><td><code>' + commitShort + '</code></td>'
+                    + '<td class="' + b.cssClass + '">' + b.key + '</td>'
+                    + '<td class="num">' + res.load_sec.toFixed(2) + '</td>'
+                    + '<td class="num">' + res.infer_sec.toFixed(2) + '</td>'
+                    + '<td class="num">' + res.tok_per_sec.toFixed(2) + '</td>'
+                    + '<td>OK</td></tr>';
+            }
+        }
+
+        html += '</tbody></table>';
+        document.getElementById('tableContainer').innerHTML = html;
+    })();
+    </script>
+</body>
+</html>
