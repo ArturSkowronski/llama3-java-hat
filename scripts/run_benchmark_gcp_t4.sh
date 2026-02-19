@@ -193,7 +193,7 @@ mkdir -p "$WORKDIR"
 
 sudo apt-get update
 sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
-  git curl build-essential autoconf \
+  git curl build-essential autoconf unzip \
   libx11-dev libxext-dev libxrender-dev libxrandr-dev libxtst-dev libxt-dev \
   libcups2-dev libasound2-dev libfontconfig1-dev clinfo
 
@@ -264,7 +264,7 @@ REMOTE_SCRIPT_NAME="run-benchmark-${RANDOM}-$$.sh"
 REMOTE_SCRIPT_PATH="~/${REMOTE_SCRIPT_NAME}"
 gcloud compute scp "${REMOTE_SCRIPT}" "${INSTANCE}:${REMOTE_SCRIPT_PATH}" --project "${PROJECT}" --zone "${ZONE}" >/dev/null
 gcloud compute ssh "${INSTANCE}" --project "${PROJECT}" --zone "${ZONE}" \
-  --command "bash ${REMOTE_SCRIPT_PATH} '$REPO_URL' '$BRANCH' '$TASK' '$RUN_OPENCL_BENCHMARKS' '$BENCHMARK_ITERS' '$BENCHMARK_WARMUP_ITERS' '$WORKDIR'; rm -f ${REMOTE_SCRIPT_PATH}"
+  --command "bash ${REMOTE_SCRIPT_PATH} '$REPO_URL' '$BRANCH' '$TASK' '$RUN_OPENCL_BENCHMARKS' '$BENCHMARK_ITERS' '$BENCHMARK_WARMUP_ITERS' '$WORKDIR'; rc=\$?; rm -f ${REMOTE_SCRIPT_PATH}; exit \$rc"
 
 mkdir -p "${OUTPUT_DIR}"
 STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
@@ -272,13 +272,13 @@ STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
 if [[ "${DOWNLOAD_RESULTS}" == "true" ]]; then
   echo "Downloading benchmark TSV and artifacts..."
   gcloud compute scp \
-    "${INSTANCE}:${WORKDIR/#\~/\$HOME}/build/benchmark-results/results.tsv" \
+    "${INSTANCE}:${WORKDIR}/build/benchmark-results/results.tsv" \
     "${OUTPUT_DIR}/results-${INSTANCE}-${STAMP}.tsv" \
     --project "${PROJECT}" \
     --zone "${ZONE}" || true
 
   gcloud compute scp \
-    "${INSTANCE}:${WORKDIR/#\~/\$HOME}/build/benchmark-results/gcp-benchmark-artifacts.tgz" \
+    "${INSTANCE}:${WORKDIR}/build/benchmark-results/gcp-benchmark-artifacts.tgz" \
     "${OUTPUT_DIR}/artifacts-${INSTANCE}-${STAMP}.tgz" \
     --project "${PROJECT}" \
     --zone "${ZONE}" || true
