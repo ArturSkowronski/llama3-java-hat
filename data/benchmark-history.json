@@ -107,6 +107,33 @@
           "error": "ServiceConfigurationError"
         }
       }
+    },
+    {
+      "date": "2026-02-19T15:27:57+01:00",
+      "commit": "ec92f6bcf727938d31238b8777da93cc344c16a5",
+      "results": {
+        "Plain Java": {
+          "load_sec": 9.1014418,
+          "infer_sec": 297.86070869,
+          "tok_per_sec": 0.02685819165335445
+        },
+        "HAT Java Sequential": {
+          "load_sec": 8.946748362,
+          "infer_sec": 308.171990094,
+          "tok_per_sec": 0.025959529928595404
+        },
+        "HAT Java MT": {
+          "load_sec": 9.164769441,
+          "infer_sec": 208.879541894,
+          "tok_per_sec": 0.0382995861033617
+        },
+        "HAT OpenCL GPU": {
+          "load_sec": -1.0,
+          "infer_sec": -1,
+          "tok_per_sec": -1,
+          "error": "ServiceConfigurationError"
+        }
+      }
     }
   ]
 }
