@@ -41,6 +41,16 @@
             padding: 1.5rem;
             margin-bottom: 2rem;
         }
+        .chart-title {
+            color: #58a6ff;
+            font-size: 1.05rem;
+            margin-bottom: 0.25rem;
+        }
+        .chart-subtitle {
+            color: #8b949e;
+            font-size: 0.85rem;
+            margin-bottom: 1rem;
+        }
         .chart-container canvas {
             max-height: 400px;
         }
@@ -94,7 +104,15 @@
     </div>
 
     <div class="chart-container">
-        <canvas id="benchmarkChart"></canvas>
+        <div class="chart-title">GitHub Actions (PoCL OpenCL)</div>
+        <div class="chart-subtitle">CPU runner baseline collected in GitHub Actions.</div>
+        <canvas id="benchmarkChartActions"></canvas>
+    </div>
+
+    <div class="chart-container">
+        <div class="chart-title">Google Cloud n1-standard-4 + T4 (Separate Graph)</div>
+        <div class="chart-subtitle">Dedicated GPU runs collected from GCP T4 instances.</div>
+        <canvas id="benchmarkChartGcp"></canvas>
     </div>
 
     <div id="tableContainer"></div>
@@ -110,7 +128,9 @@
     <script>
     (function() {
         const data = window.BENCHMARK_DATA;
-        const runs = data.runs || [];
+        const SOURCE_GHA = 'github-actions-pocl';
+        const SOURCE_GCP = 'gcp-t4';
+        const runs = (data.runs || []).map(r => ({ ...r, source: r.source || SOURCE_GHA }));
 
         if (runs.length === 0) {
             document.getElementById('tableContainer').innerHTML =
@@ -125,57 +145,72 @@
             { key: 'HAT OpenCL GPU', color: '#ffa657', cssClass: 'backend-opencl' }
         ];
 
-        // --- Chart ---
-        const labels = runs.map(r => {
-            const d = new Date(r.date);
-            return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-                + '\n' + r.commit.substring(0, 7);
-        });
+        function renderChart(canvasId, chartRuns, emptyText) {
+            const canvas = document.getElementById(canvasId);
+            if (chartRuns.length === 0) {
+                canvas.replaceWith(Object.assign(document.createElement('div'), {
+                    className: 'no-data',
+                    textContent: emptyText
+                }));
+                return;
+            }
 
-        const datasets = backends.map(b => ({
-            label: b.key,
-            data: runs.map(r => {
-                const res = r.results[b.key];
-                return (res && !res.error && res.tok_per_sec > 0) ? res.tok_per_sec : null;
-            }),
-            borderColor: b.color,
-            backgroundColor: b.color + '33',
-            tension: 0.3,
-            pointRadius: 4,
-            pointHoverRadius: 6,
-            spanGaps: true
-        }));
+            const labels = chartRuns.map(r => {
+                const d = new Date(r.date);
+                return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+                    + '\n' + r.commit.substring(0, 7);
+            });
 
-        new Chart(document.getElementById('benchmarkChart'), {
-            type: 'line',
-            data: { labels, datasets },
-            options: {
-                responsive: true,
-                interaction: { mode: 'index', intersect: false },
-                plugins: {
-                    legend: {
-                        labels: { color: '#c9d1d9', usePointStyle: true, pointStyle: 'circle' }
+            const datasets = backends.map(b => ({
+                label: b.key,
+                data: chartRuns.map(r => {
+                    const res = r.results[b.key];
+                    return (res && !res.error && res.tok_per_sec > 0) ? res.tok_per_sec : null;
+                }),
+                borderColor: b.color,
+                backgroundColor: b.color + '33',
+                tension: 0.3,
+                pointRadius: 4,
+                pointHoverRadius: 6,
+                spanGaps: true
+            }));
+
+            new Chart(canvas, {
+                type: 'line',
+                data: { labels, datasets },
+                options: {
+                    responsive: true,
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: {
+                        legend: {
+                            labels: { color: '#c9d1d9', usePointStyle: true, pointStyle: 'circle' }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: ctx => ctx.dataset.label + ': ' + (ctx.parsed.y != null ? ctx.parsed.y.toFixed(2) + ' tok/s' : 'N/A')
+                            }
+                        }
                     },
-                    tooltip: {
-                        callbacks: {
-                            label: ctx => ctx.dataset.label + ': ' + (ctx.parsed.y != null ? ctx.parsed.y.toFixed(2) + ' tok/s' : 'N/A')
+                    scales: {
+                        x: {
+                            ticks: { color: '#8b949e', maxRotation: 45 },
+                            grid: { color: '#21262d' }
+                        },
+                        y: {
+                            title: { display: true, text: 'Tokens / sec', color: '#8b949e' },
+                            ticks: { color: '#8b949e' },
+                            grid: { color: '#21262d' },
+                            beginAtZero: true
                         }
                     }
-                },
-                scales: {
-                    x: {
-                        ticks: { color: '#8b949e', maxRotation: 45 },
-                        grid: { color: '#21262d' }
-                    },
-                    y: {
-                        title: { display: true, text: 'Tokens / sec', color: '#8b949e' },
-                        ticks: { color: '#8b949e' },
-                        grid: { color: '#21262d' },
-                        beginAtZero: true
-                    }
                 }
-            }
-        });
+            });
+        }
+
+        const ghaRuns = runs.filter(r => r.source === SOURCE_GHA);
+        const gcpRuns = runs.filter(r => r.source === SOURCE_GCP);
+        renderChart('benchmarkChartActions', ghaRuns, 'No GitHub Actions benchmark runs yet.');
+        renderChart('benchmarkChartGcp', gcpRuns, 'No GCP T4 benchmark runs yet.');
 
         // --- Table ---
         let html = '<table><thead><tr>'
@@ -193,25 +228,26 @@
                 hour: '2-digit', minute: '2-digit'
             });
             const commitShort = run.commit.substring(0, 7);
+            const sourceLabel = run.source === SOURCE_GCP ? 'GCP T4' : 'GitHub Actions';
 
             for (const b of backends) {
                 const res = run.results[b.key];
                 if (!res) {
-                    html += '<tr><td>' + dateStr + '</td><td><code>' + commitShort + '</code></td>'
+                    html += '<tr><td>' + dateStr + ' <span style="color:#8b949e">(' + sourceLabel + ')</span></td><td><code>' + commitShort + '</code></td>'
                         + '<td class="' + b.cssClass + '">' + b.key + '</td>'
                         + '<td class="num">-</td><td class="num">-</td><td class="num">-</td>'
                         + '<td class="error">No data</td></tr>';
                     continue;
                 }
                 if (res.error) {
-                    html += '<tr><td>' + dateStr + '</td><td><code>' + commitShort + '</code></td>'
+                    html += '<tr><td>' + dateStr + ' <span style="color:#8b949e">(' + sourceLabel + ')</span></td><td><code>' + commitShort + '</code></td>'
                         + '<td class="' + b.cssClass + '">' + b.key + '</td>'
                         + '<td class="num">' + (res.load_sec >= 0 ? res.load_sec.toFixed(2) : '-') + '</td>'
                         + '<td class="num">-</td><td class="num">-</td>'
                         + '<td class="error">' + res.error + '</td></tr>';
                     continue;
                 }
-                html += '<tr><td>' + dateStr + '</td><td><code>' + commitShort + '</code></td>'
+                html += '<tr><td>' + dateStr + ' <span style="color:#8b949e">(' + sourceLabel + ')</span></td><td><code>' + commitShort + '</code></td>'
                     + '<td class="' + b.cssClass + '">' + b.key + '</td>'
                     + '<td class="num">' + res.load_sec.toFixed(2) + '</td>'
                     + '<td class="num">' + res.infer_sec.toFixed(2) + '</td>'
