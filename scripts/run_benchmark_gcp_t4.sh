@@ -242,6 +242,29 @@ git fetch origin
 git checkout "$BRANCH"
 git pull --ff-only origin "$BRANCH"
 
+echo "Ensuring Boot JDK 25 is available..."
+need_boot_jdk="true"
+if command -v javac >/dev/null 2>&1; then
+  if javac -version 2>&1 | grep -q "25"; then
+    need_boot_jdk="false"
+  fi
+fi
+
+if [[ "${need_boot_jdk}" == "true" ]]; then
+  BOOT_JDK_DIR="$HOME/boot-jdk-25"
+  if [[ ! -x "$BOOT_JDK_DIR/bin/javac" ]]; then
+    TMP_BOOT_JDK_TGZ="$(mktemp)"
+    curl -fsSL -o "$TMP_BOOT_JDK_TGZ" \
+      "https://api.adoptium.net/v3/binary/latest/25/ga/linux/x64/jdk/hotspot/normal/eclipse"
+    rm -rf "$BOOT_JDK_DIR"
+    mkdir -p "$BOOT_JDK_DIR"
+    tar -xzf "$TMP_BOOT_JDK_TGZ" -C "$BOOT_JDK_DIR" --strip-components=1
+    rm -f "$TMP_BOOT_JDK_TGZ"
+  fi
+  export JAVA_HOME="$BOOT_JDK_DIR"
+  export PATH="$JAVA_HOME/bin:$PATH"
+fi
+
 if [[ ! -d "$HOME/babylon-jdk" ]]; then
   git clone --depth 1 --branch code-reflection https://github.com/openjdk/babylon "$HOME/babylon-jdk"
 fi
