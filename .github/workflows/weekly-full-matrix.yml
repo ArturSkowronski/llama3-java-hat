@@ -29,17 +29,20 @@ jobs:
             ${{ runner.os }}-babylon-hat-
 
       - name: Install Build Dependencies
+        if: steps.cache-babylon.outputs.cache-hit != 'true'
         run: |
           sudo apt-get update
           sudo apt-get install -y build-essential libx11-dev libxext-dev libxrender-dev libxrandr-dev libxtst-dev libxt-dev libcups2-dev libasound2-dev libfontconfig1-dev autoconf
 
       - name: Setup Boot JDK
+        if: steps.cache-babylon.outputs.cache-hit != 'true'
         uses: actions/setup-java@v4
         with:
           java-version: '25'
           distribution: 'temurin'
 
       - name: Configure and Build Babylon
+        if: steps.cache-babylon.outputs.cache-hit != 'true'
         id: build-jdk
         continue-on-error: true
         run: |
@@ -54,13 +57,14 @@ jobs:
           make images JOBS=$(nproc) CONF=linux-x86_64-server-release
 
       - name: Retry Build if failed
-        if: steps.build-jdk.outcome == 'failure'
+        if: steps.cache-babylon.outputs.cache-hit != 'true' && steps.build-jdk.outcome == 'failure'
         run: |
           cd babylon
           make reconfigure JOBS=$(nproc) CONF=linux-x86_64-server-release
           make images JOBS=$(nproc) CONF=linux-x86_64-server-release
 
       - name: Build HAT
+        if: steps.cache-babylon.outputs.cache-hit != 'true'
         run: |
           cd babylon/hat
           export JAVA_HOME=$(pwd)/../build/linux-x86_64-server-release/images/jdk
@@ -128,7 +132,7 @@ jobs:
           export JAVA_HOME=$JAVA_BABYLON_ROOT/build/linux-x86_64-server-release/images/jdk
           export PATH=$JAVA_HOME/bin:$PATH
           export LLAMA_FP16_PATH=$(pwd)/Llama-3.2-1B-Instruct-f16.gguf
-          ./gradlew plainJavaIntegrationTest --console=plain
+          ./gradlew plainIntegrationTest --console=plain
 
       - name: Upload Baseline Results
         if: always()
@@ -136,18 +140,14 @@ jobs:
         with:
           name: weekly-results-baseline
           path: |
-            build/reports/tests/integrationTest/
-            build/test-results/integrationTest/
+            build/reports/tests/plainIntegrationTest/
+            build/test-results/plainIntegrationTest/
           retention-days: 7
 
-  individual-hat-tests:
+  benchmarks:
     needs: build-babylon
     runs-on: ubuntu-latest
-    timeout-minutes: 60
-    strategy:
-      matrix:
-        kernel: [SiLU, RoPE, Softmax, RMSNorm, Attention, GEMV]
-      fail-fast: false
+    timeout-minutes: 180
     steps:
       - name: Checkout Project
         uses: actions/checkout@v4
@@ -186,28 +186,113 @@ jobs:
           export PATH=$JAVA_HOME/bin:$PATH
           ./gradlew build -x test --console=plain
 
-      - name: Run ${{ matrix.kernel }} HAT Integration Test
-        timeout-minutes: 30
+      - name: Run Weekly Benchmarks (All Suites)
         env:
           CI: "true"
+          LLAMA_FP16_PATH: ${{ github.workspace }}/Llama-3.2-1B-Instruct-f16.gguf
         run: |
           export JAVA_HOME=$JAVA_BABYLON_ROOT/build/linux-x86_64-server-release/images/jdk
           export PATH=$JAVA_HOME/bin:$PATH
-          export LLAMA_FP16_PATH=$(pwd)/Llama-3.2-1B-Instruct-f16.gguf
-          ./gradlew hatSequentialIntegrationTest --tests "ChatIntegrationTestWith${{ matrix.kernel }}HAT" --console=plain
+          ./gradlew benchmarkAll --console=plain
 
-      - name: Upload ${{ matrix.kernel }} Results
+      - name: Upload Benchmark Results
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: weekly-results-${{ matrix.kernel }}-hat
+          name: weekly-results-benchmarks
           path: |
-            build/reports/tests/integrationTest/
-            build/test-results/integrationTest/
+            build/reports/tests/benchmarkKernelGEMV/
+            build/test-results/benchmarkKernelGEMV/
+            build/reports/tests/benchmarkKernelRMSNorm/
+            build/test-results/benchmarkKernelRMSNorm/
+            build/reports/tests/benchmarkKernelRoPE/
+            build/test-results/benchmarkKernelRoPE/
+            build/reports/tests/benchmarkKernelSiLU/
+            build/test-results/benchmarkKernelSiLU/
+            build/reports/tests/benchmarkKernelSoftmax/
+            build/test-results/benchmarkKernelSoftmax/
+            build/reports/tests/benchmarkKernelAttention/
+            build/test-results/benchmarkKernelAttention/
+            build/reports/tests/benchmark/
+            build/test-results/benchmark/
+            build/reports/tests/benchmarkMicroGEMV/
+            build/test-results/benchmarkMicroGEMV/
+            build/reports/tests/benchmarkMicroRMSNorm/
+            build/test-results/benchmarkMicroRMSNorm/
+            build/reports/tests/benchmarkMicroRoPE/
+            build/test-results/benchmarkMicroRoPE/
+            build/reports/tests/benchmarkMicroSiLU/
+            build/test-results/benchmarkMicroSiLU/
+            build/reports/tests/benchmarkMicroSoftmax/
+            build/test-results/benchmarkMicroSoftmax/
+            build/reports/tests/benchmarkMicroAttention/
+            build/test-results/benchmarkMicroAttention/
+            build/benchmark-results/results.tsv
+          retention-days: 7
+
+  regression-tests:
+    needs: build-babylon
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Checkout Project
+        uses: actions/checkout@v4
+
+      - name: Download Babylon Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: babylon-jdk-weekly
+          path: babylon-jdk
+
+      - name: Setup Environment
+        run: |
+          JDK_PATH=babylon-jdk/build/linux-x86_64-server-release/images/jdk
+          chmod -R +x $JDK_PATH/bin/
+          find $JDK_PATH/lib -type f -name "jspawnhelper" -exec chmod +x {} \;
+          find $JDK_PATH/lib -type f -name "*.so" -exec chmod +x {} \;
+          echo "JAVA_BABYLON_ROOT=$(pwd)/babylon-jdk" >> $GITHUB_ENV
+          chmod +x gradlew
+
+      - name: Cache Llama 3.2 1B Model
+        id: cache-llama
+        uses: actions/cache@v4
+        with:
+          path: Llama-3.2-1B-Instruct-f16.gguf
+          key: llama-3.2-1b-instruct-f16-gguf
+
+      - name: Download Llama 3.2 1B Instruct FP16
+        if: steps.cache-llama.outputs.cache-hit != 'true'
+        run: |
+          chmod +x scripts/download_llama_fp16.sh
+          ./scripts/download_llama_fp16.sh
+
+      - name: Build Project
+        run: |
+          export JAVA_HOME=$JAVA_BABYLON_ROOT/build/linux-x86_64-server-release/images/jdk
+          export PATH=$JAVA_HOME/bin:$PATH
+          ./gradlew build -x test --console=plain
+
+      - name: Run Weekly Regression Tests
+        env:
+          CI: "true"
+          LLAMA_FP16_PATH: ${{ github.workspace }}/Llama-3.2-1B-Instruct-f16.gguf
+        run: |
+          export JAVA_HOME=$JAVA_BABYLON_ROOT/build/linux-x86_64-server-release/images/jdk
+          export PATH=$JAVA_HOME/bin:$PATH
+          ./gradlew regressionTest --console=plain
+
+      - name: Upload Regression Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: weekly-results-regression
+          path: |
+            build/reports/tests/regressionTest/
+            build/test-results/regressionTest/
           retention-days: 7
 
   all-hat-test:
-    needs: [baseline-test, individual-hat-tests]
+    needs: [baseline-test, benchmarks, regression-tests]
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
@@ -248,7 +333,7 @@ jobs:
           export PATH=$JAVA_HOME/bin:$PATH
           ./gradlew build -x test --console=plain
 
-      - name: Run HAT Sequential Integration Tests
+      - name: Run HAT Backend Integration Tests
         timeout-minutes: 30
         env:
           CI: "true"
@@ -256,7 +341,7 @@ jobs:
           export JAVA_HOME=$JAVA_BABYLON_ROOT/build/linux-x86_64-server-release/images/jdk
           export PATH=$JAVA_HOME/bin:$PATH
           export LLAMA_FP16_PATH=$(pwd)/Llama-3.2-1B-Instruct-f16.gguf
-          ./gradlew hatSequentialIntegrationTest --console=plain
+          ./gradlew hatIntegrationTest --console=plain
 
       - name: Upload All-HAT Results
         if: always()
@@ -264,6 +349,6 @@ jobs:
         with:
           name: weekly-results-all-hat
           path: |
-            build/reports/tests/integrationTest/
-            build/test-results/integrationTest/
+            build/reports/tests/hatIntegrationTest/
+            build/test-results/hatIntegrationTest/
           retention-days: 7

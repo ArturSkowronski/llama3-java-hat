@@ -1,5 +1,6 @@
 package com.arturskowronski.llama3babylon.hat.integration.chat;
 
+import com.arturskowronski.llama3babylon.hat.BackendType;
 import com.arturskowronski.llama3babylon.hat.LlamaInference;
 import com.arturskowronski.llama3babylon.hat.utils.ResponseAssertions;
 import com.arturskowronski.llama3babylon.hat.kernels.HybridKernelFactory;
@@ -13,18 +14,15 @@ import java.nio.file.Paths;
 import java.util.Set;
 
 /**
- * Integration test with ALL 6 kernels using HAT @Reflect dispatch simultaneously.
- * Validates that all HAT kernels work together in real 16-layer inference.
- * Total HAT dispatches per token: ~250, ~8,000 for 32-token inference.
+ * Integration test running all 6 HAT kernels on the Java Multi-Threaded backend.
  */
-@Tag("integration")
-@Tag("hat-sequential")
-public class ChatIntegrationTestWithAllHAT {
+@Tag("hat-integration")
+public class ChatHATJavaMTIntegrationTest {
 
     @Test
     @EnabledIfEnvironmentVariable(named = "LLAMA_FP16_PATH", matches = ".*")
-    public void testChatWithAllHATKernels() throws IOException {
-        var modelPath = Paths.get(System.getenv("LLAMA_FP16_PATH"));
+    public void testChatWithAllHATKernelsOnJavaMT() throws IOException {
+        Path modelPath = Paths.get(System.getenv("LLAMA_FP16_PATH"));
 
         var factory = new HybridKernelFactory(
             Set.of(
@@ -37,7 +35,7 @@ public class ChatIntegrationTestWithAllHAT {
             )
         );
 
-        var inference = new LlamaInference(modelPath, factory);
+        LlamaInference inference = new LlamaInference(modelPath, factory, BackendType.JAVA_MT);
 
         int maxTokens = System.getenv("CI") != null ? 32 : 128;
         String response = inference.chat(
@@ -46,9 +44,9 @@ public class ChatIntegrationTestWithAllHAT {
                 maxTokens
         );
 
-        System.out.println("=== Model Response (ALL HAT KERNELS) ===");
+        System.out.println("=== Model Response (ALL HAT KERNELS + JAVA MT BACKEND) ===");
         System.out.println(response);
-        System.out.println("=========================================");
+        System.out.println("===========================================================");
 
         ResponseAssertions.assertValidResponse(response);
     }

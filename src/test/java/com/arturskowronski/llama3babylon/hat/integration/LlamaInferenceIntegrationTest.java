@@ -12,8 +12,7 @@ import java.nio.file.Paths;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-@Tag("integration")
-@Tag("plain-java")
+@Tag("plain-integration")
 public class LlamaInferenceIntegrationTest {
 
     @Test

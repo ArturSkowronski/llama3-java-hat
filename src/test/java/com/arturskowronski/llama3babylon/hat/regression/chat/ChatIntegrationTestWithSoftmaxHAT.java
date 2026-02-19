@@ -1,4 +1,4 @@
-package com.arturskowronski.llama3babylon.hat.integration.chat;
+package com.arturskowronski.llama3babylon.hat.regression.chat;
 
 import com.arturskowronski.llama3babylon.hat.LlamaInference;
 import com.arturskowronski.llama3babylon.hat.utils.ResponseAssertions;
@@ -13,20 +13,19 @@ import java.nio.file.Paths;
 import java.util.Set;
 
 /**
- * Integration test for GEMV kernel using HAT @Reflect dispatch in real 16-layer inference.
- * Enables ONLY GEMV for HAT dispatch. Most intensive kernel: ~113 GEMV operations per token.
+ * Integration test for Softmax kernel using HAT @Reflect dispatch in real 16-layer inference.
+ * Enables ONLY Softmax for HAT dispatch. Only the normalize step uses HAT (reductions stay in Java).
  */
-@Tag("integration")
-@Tag("hat-sequential")
-public class ChatIntegrationTestWithGEMVHAT {
+@Tag("regression")
+public class ChatIntegrationTestWithSoftmaxHAT {
 
     @Test
     @EnabledIfEnvironmentVariable(named = "LLAMA_FP16_PATH", matches = ".*")
-    public void testChatWithGEMVHAT() throws IOException {
+    public void testChatWithSoftmaxHAT() throws IOException {
         Path modelPath = Paths.get(System.getenv("LLAMA_FP16_PATH"));
 
         HybridKernelFactory factory = new HybridKernelFactory(
-            Set.of(HybridKernelFactory.KernelType.GEMV)
+            Set.of(HybridKernelFactory.KernelType.SOFTMAX)
         );
 
         LlamaInference inference = new LlamaInference(modelPath, factory);
@@ -38,9 +37,9 @@ public class ChatIntegrationTestWithGEMVHAT {
                 maxTokens
         );
 
-        System.out.println("=== Model Response (GEMV HAT) ===");
+        System.out.println("=== Model Response (Softmax HAT) ===");
         System.out.println(response);
-        System.out.println("==================================");
+        System.out.println("====================================");
 
         ResponseAssertions.assertValidResponse(response);
     }

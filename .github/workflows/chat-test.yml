@@ -40,23 +40,25 @@ jobs:
           path: |
             babylon/build
             babylon/hat/build
-          key: ${{ runner.os }}-babylon-hat-${{ hashFiles('.github/workflows/chat-test.yml') }}-${{ hashFiles('babylon/.git/HEAD') }}
+          key: ${{ runner.os }}-babylon-hat-${{ hashFiles('babylon/.git/HEAD') }}
           restore-keys: |
-            ${{ runner.os }}-babylon-hat-${{ hashFiles('.github/workflows/chat-test.yml') }}-
             ${{ runner.os }}-babylon-hat-
 
       - name: Install Build Dependencies
+        if: steps.cache-babylon.outputs.cache-hit != 'true'
         run: |
           sudo apt-get update
           sudo apt-get install -y build-essential libx11-dev libxext-dev libxrender-dev libxrandr-dev libxtst-dev libxt-dev libcups2-dev libasound2-dev libfontconfig1-dev autoconf
 
       - name: Setup Boot JDK
+        if: steps.cache-babylon.outputs.cache-hit != 'true'
         uses: actions/setup-java@v4
         with:
           java-version: '25'
           distribution: 'temurin'
 
       - name: Configure and Build Babylon
+        if: steps.cache-babylon.outputs.cache-hit != 'true'
         id: build-jdk
         continue-on-error: true
         run: |
@@ -78,7 +80,7 @@ jobs:
           make images JOBS=$(nproc) CONF=linux-x86_64-server-release
 
       - name: Retry Build if failed
-        if: steps.build-jdk.outcome == 'failure'
+        if: steps.cache-babylon.outputs.cache-hit != 'true' && steps.build-jdk.outcome == 'failure'
         run: |
           cd babylon
           echo "Build failed, attempting reconfigure and retry..."
@@ -86,6 +88,7 @@ jobs:
           make images JOBS=$(nproc) CONF=linux-x86_64-server-release
 
       - name: Build HAT
+        if: steps.cache-babylon.outputs.cache-hit != 'true'
         run: |
           cd babylon/hat
           export JAVA_HOME=$(pwd)/../build/linux-x86_64-server-release/images/jdk
@@ -154,7 +157,7 @@ jobs:
           export JAVA_HOME=$JAVA_BABYLON_ROOT/build/linux-x86_64-server-release/images/jdk
           export PATH=$JAVA_HOME/bin:$PATH
           export LLAMA_FP16_PATH=$(pwd)/Llama-3.2-1B-Instruct-f16.gguf
-          ./gradlew plainJavaIntegrationTest --tests "com.arturskowronski.llama3babylon.hat.integration.chat.ChatIntegrationTest" --console=plain
+          ./gradlew plainIntegrationTest --tests "com.arturskowronski.llama3babylon.hat.integration.chat.ChatPlainIntegrationTest" --console=plain
 
       - name: Upload Baseline Results
         if: always()
@@ -219,7 +222,7 @@ jobs:
           export JAVA_HOME=$JAVA_BABYLON_ROOT/build/linux-x86_64-server-release/images/jdk
           export PATH=$JAVA_HOME/bin:$PATH
           export LLAMA_FP16_PATH=$(pwd)/Llama-3.2-1B-Instruct-f16.gguf
-          ./gradlew hatSequentialIntegrationTest --console=plain
+          ./gradlew hatIntegrationTest --console=plain
 
       - name: Upload All-HAT Results
         if: always()
@@ -287,7 +290,7 @@ jobs:
           export JAVA_HOME=$JAVA_BABYLON_ROOT/build/linux-x86_64-server-release/images/jdk
           export PATH=$JAVA_HOME/bin:$PATH
           export LLAMA_FP16_PATH=$(pwd)/Llama-3.2-1B-Instruct-f16.gguf
-          ./gradlew hatSequentialIntegrationTest --tests "ChatIntegrationTestWith${{ matrix.kernel }}HAT" --console=plain
+          ./gradlew regressionTest --tests "com.arturskowronski.llama3babylon.hat.regression.chat.ChatIntegrationTestWith${{ matrix.kernel }}HAT" --console=plain
 
       - name: Upload ${{ matrix.kernel }} Results
         if: always()

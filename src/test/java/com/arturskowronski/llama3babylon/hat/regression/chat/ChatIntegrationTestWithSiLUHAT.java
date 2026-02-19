@@ -1,4 +1,4 @@
-package com.arturskowronski.llama3babylon.hat.integration.chat;
+package com.arturskowronski.llama3babylon.hat.regression.chat;
 
 import com.arturskowronski.llama3babylon.hat.LlamaInference;
 import com.arturskowronski.llama3babylon.hat.utils.ResponseAssertions;
@@ -16,8 +16,7 @@ import java.util.Set;
  * Integration test for SiLU kernel using HAT @Reflect dispatch in real 16-layer inference.
  * Enables ONLY SiLU for HAT dispatch while keeping all other kernels in plain Java mode.
  */
-@Tag("integration")
-@Tag("hat-sequential")
+@Tag("regression")
 public class ChatIntegrationTestWithSiLUHAT {
 
     @Test

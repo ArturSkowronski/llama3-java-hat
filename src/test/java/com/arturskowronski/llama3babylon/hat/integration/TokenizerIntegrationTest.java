@@ -13,8 +13,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-@Tag("integration")
-@Tag("plain-java")
+@Tag("plain-integration")
 public class TokenizerIntegrationTest {
 
     @Test
