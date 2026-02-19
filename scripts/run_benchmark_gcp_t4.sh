@@ -193,7 +193,7 @@ mkdir -p "$WORKDIR"
 
 sudo apt-get update
 sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
-  git curl build-essential autoconf unzip zip \
+  git curl build-essential autoconf cmake unzip zip \
   libx11-dev libxext-dev libxrender-dev libxrandr-dev libxtst-dev libxt-dev \
   libcups2-dev libasound2-dev libfontconfig1-dev clinfo \
   ubuntu-drivers-common pciutils
