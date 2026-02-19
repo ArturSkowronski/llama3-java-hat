@@ -51,7 +51,7 @@ TASK="benchmarkAll"
 REPO_URL=""
 BRANCH=""
 IMAGE_PROJECT="ubuntu-os-cloud"
-IMAGE_FAMILY="ubuntu-2204-lts"
+IMAGE_FAMILY="ubuntu-2404-lts"
 DISK_GB="200"
 WORKDIR="~/llama3-java-hat"
 OUTPUT_DIR="build/benchmark-results/gcp"
@@ -143,8 +143,18 @@ fi
 
 if gcloud compute instances describe "${INSTANCE}" --project "${PROJECT}" --zone "${ZONE}" >/dev/null 2>&1; then
   echo "Instance exists: ${INSTANCE}"
-  gcloud compute instances start "${INSTANCE}" --project "${PROJECT}" --zone "${ZONE}" >/dev/null
-else
+  if [[ "${DESTROY_INSTANCE}" == "true" ]]; then
+    echo "Destroy mode enabled; recreating instance for a clean benchmark environment."
+    gcloud compute instances delete "${INSTANCE}" \
+      --project "${PROJECT}" \
+      --zone "${ZONE}" \
+      --quiet >/dev/null
+  else
+    gcloud compute instances start "${INSTANCE}" --project "${PROJECT}" --zone "${ZONE}" >/dev/null
+  fi
+fi
+
+if ! gcloud compute instances describe "${INSTANCE}" --project "${PROJECT}" --zone "${ZONE}" >/dev/null 2>&1; then
   if [[ "${SKIP_CREATE}" == "true" ]]; then
     echo "Instance ${INSTANCE} does not exist and --skip-create was passed." >&2
     exit 1
@@ -193,7 +203,7 @@ mkdir -p "$WORKDIR"
 
 sudo apt-get update
 sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
-  git curl build-essential autoconf cmake unzip zip \
+  git curl build-essential autoconf cmake pkg-config ninja-build unzip zip \
   libx11-dev libxext-dev libxrender-dev libxrandr-dev libxtst-dev libxt-dev \
   libcups2-dev libasound2-dev libfontconfig1-dev clinfo ocl-icd-opencl-dev \
   ubuntu-drivers-common pciutils
@@ -279,7 +289,11 @@ if [[ ! -f "hat/build/hat-core-1.0.jar" ]]; then
   cd hat
   export JAVA_HOME="$HOME/babylon-jdk/build/linux-x86_64-server-release/images/jdk"
   export PATH="$JAVA_HOME/bin:$PATH"
-  bash hat/bootstrap.bash
+  if ! bash hat/bootstrap.bash; then
+    echo "HAT bootstrap failed. Dumping CMake logs for diagnosis..."
+    find "$HOME/babylon-jdk/hat" -type f \( -name CMakeError.log -o -name CMakeOutput.log \) -print -exec tail -n 200 {} \;
+    exit 1
+  fi
   java -cp hat/job.jar --enable-preview --source 26 hat.java bld
 fi
 
