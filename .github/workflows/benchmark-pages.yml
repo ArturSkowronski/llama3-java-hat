@@ -186,7 +186,8 @@ jobs:
             benchmark-results/results.tsv \
             existing-data/benchmark-history.json \
             docs/benchmark-page/index.html \
-            deploy
+            deploy \
+            github-actions-pocl
 
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v4

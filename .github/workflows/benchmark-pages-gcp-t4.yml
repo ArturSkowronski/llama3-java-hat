@@ -1,0 +1,131 @@
+name: Benchmark Pages (GCP T4)
+
+on:
+  workflow_dispatch:
+    inputs:
+      gcp_project:
+        description: "GCP project id"
+        required: false
+        default: "jdk-arm-benchmark"
+        type: string
+      gcp_zone:
+        description: "GCP zone"
+        required: false
+        default: "us-central1-a"
+        type: string
+      gcp_instance:
+        description: "GCP instance name"
+        required: false
+        default: "llama3-benchmark-t4"
+        type: string
+      benchmark_task:
+        description: "Gradle benchmark task to run (use benchmarkAll for full suite)"
+        required: false
+        default: "benchmarkAll"
+        type: string
+      benchmark_iters:
+        description: "Optional BENCHMARK_ITERS value"
+        required: false
+        default: ""
+        type: string
+      benchmark_warmup_iters:
+        description: "Optional BENCHMARK_WARMUP_ITERS value"
+        required: false
+        default: ""
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  run-benchmarks-gcp:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - name: Checkout Project
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Setup gcloud CLI
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ inputs.gcp_project }}
+
+      - name: Run benchmark on GCP n1-standard-4 + T4
+        env:
+          BENCHMARK_ITERS: ${{ inputs.benchmark_iters }}
+          BENCHMARK_WARMUP_ITERS: ${{ inputs.benchmark_warmup_iters }}
+          RUN_OPENCL_BENCHMARKS: "true"
+        run: |
+          chmod +x scripts/run_benchmark_gcp_t4.sh
+          scripts/run_benchmark_gcp_t4.sh \
+            --project "${{ inputs.gcp_project }}" \
+            --zone "${{ inputs.gcp_zone }}" \
+            --instance "${{ inputs.gcp_instance }}" \
+            --task "${{ inputs.benchmark_task }}" \
+            --destroy-instance
+
+      - name: Prepare benchmark TSV artifact
+        run: |
+          mkdir -p benchmark-results
+          RESULT_TSV=$(ls -1t build/benchmark-results/gcp/results-*.tsv | head -1)
+          if [ -z "${RESULT_TSV}" ]; then
+            echo "No TSV results found in build/benchmark-results/gcp"
+            exit 1
+          fi
+          cp "${RESULT_TSV}" benchmark-results/results.tsv
+
+      - name: Upload Benchmark Results
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results-tsv-gcp
+          path: benchmark-results/results.tsv
+          retention-days: 7
+
+  deploy-pages:
+    needs: run-benchmarks-gcp
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Project
+        uses: actions/checkout@v4
+
+      - name: Download Benchmark Results
+        uses: actions/download-artifact@v4
+        with:
+          name: benchmark-results-tsv-gcp
+          path: benchmark-results
+
+      - name: Fetch existing benchmark history from gh-pages
+        run: |
+          git fetch origin gh-pages:gh-pages 2>/dev/null || true
+          mkdir -p existing-data
+          git show gh-pages:data/benchmark-history.json > existing-data/benchmark-history.json 2>/dev/null || echo '{"runs":[]}' > existing-data/benchmark-history.json
+
+      - name: Install jq
+        run: sudo apt-get install -y jq
+
+      - name: Generate benchmark page (GCP source)
+        env:
+          GITHUB_SHA: ${{ github.sha }}
+          RUN_DATE: ${{ github.event.repository.updated_at }}
+        run: |
+          export RUN_DATE="${RUN_DATE:-$(date -u +%Y-%m-%dT%H:%M:%SZ)}"
+          chmod +x .github/scripts/update-benchmark-data.sh
+          .github/scripts/update-benchmark-data.sh \
+            benchmark-results/results.tsv \
+            existing-data/benchmark-history.json \
+            docs/benchmark-page/index.html \
+            deploy \
+            gcp-t4
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./deploy
+          keep_files: false
+          commit_message: "Update GCP T4 benchmark results (${{ github.sha }})"

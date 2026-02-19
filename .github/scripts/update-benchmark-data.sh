@@ -5,11 +5,12 @@
 # merges into an existing benchmark-history.json, and produces
 # a deploy-ready index.html with inlined data.
 #
-# Usage: ./update-benchmark-data.sh <results.tsv> <history.json> <template.html> <output-dir>
+# Usage: ./update-benchmark-data.sh <results.tsv> <history.json> <template.html> <output-dir> [source]
 #   results.tsv   - TSV from the current benchmark run
 #   history.json  - existing history (or empty file / nonexistent)
 #   template.html - the HTML template from docs/benchmark-page/index.html
 #   output-dir    - directory to write the final index.html + data/benchmark-history.json
+#   source        - run source label (default: github-actions-pocl)
 
 set -euo pipefail
 
@@ -17,6 +18,7 @@ RESULTS_TSV="${1:?Usage: $0 <results.tsv> <history.json> <template.html> <output
 HISTORY_JSON="${2:?}"
 TEMPLATE_HTML="${3:?}"
 OUTPUT_DIR="${4:?}"
+RUN_SOURCE="${5:-github-actions-pocl}"
 
 COMMIT_SHA="${GITHUB_SHA:-unknown}"
 RUN_DATE="${RUN_DATE:-$(date -u +%Y-%m-%dT%H:%M:%SZ)}"
@@ -82,8 +84,9 @@ done
 NEW_RUN=$(jq -n \
     --arg date "$RUN_DATE" \
     --arg commit "$COMMIT_SHA" \
+    --arg source "$RUN_SOURCE" \
     --argjson results "$RESULTS_OBJ" \
-    '{date: $date, commit: $commit, results: $results}')
+    '{date: $date, commit: $commit, source: $source, results: $results}')
 
 # Append to history
 UPDATED_HISTORY=$(echo "$HISTORY" | jq --argjson run "$NEW_RUN" '.runs += [$run]')
