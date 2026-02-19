@@ -38,30 +38,40 @@ tasks.test {
     jvmArgs(application.applicationDefaultJvmArgs)
 }
 
+fun Test.configureBaseTestTask(descriptionText: String) {
+    description = descriptionText
+    group = "verification"
+    testClassesDirs = sourceSets["test"].output.classesDirs
+    classpath = sourceSets["test"].runtimeClasspath
+    jvmArgs(application.applicationDefaultJvmArgs)
+}
+
+fun Test.configureLongRunningJvm() {
+    jvmArgs("-Xmx5g")
+    maxParallelForks = 1 // Avoid running multiple inference backends at once (GPU/FFI/large heap).
+    forkEvery = 1 // Fork a new JVM per test class to prevent OOM from repeated model loads.
+    failFast = false
+}
+
+fun Test.configureVerboseTestLogging() {
+    // Forward test output to Gradle console so CI sees activity.
+    // Prevents GitHub Actions no-output timeout during long inference.
+    testLogging {
+        showStandardStreams = true
+        events("started", "passed", "failed")
+    }
+}
+
 fun registerIntegrationTest(name: String, description: String, vararg tags: String) =
     tasks.register<Test>(name) {
-        this.description = description
-        group = "verification"
-
-        testClassesDirs = sourceSets["test"].output.classesDirs
-        classpath = sourceSets["test"].runtimeClasspath
+        configureBaseTestTask(description)
 
         useJUnitPlatform {
             tags.forEach { includeTags(it) }
             excludeTags("regression")
         }
-        jvmArgs(application.applicationDefaultJvmArgs)
-        jvmArgs("-Xmx5g")
-        maxParallelForks = 1 // Avoid running multiple inference backends at once (GPU/FFI/large heap).
-        forkEvery = 1 // Fork a new JVM per test class to prevent OOM from repeated model loads
-        failFast = false
-
-        // Forward test output to Gradle console so CI sees activity
-        // (prevents GitHub Actions no-output timeout during long inference)
-        testLogging {
-            showStandardStreams = true
-            events("started", "passed", "failed")
-        }
+        configureLongRunningJvm()
+        configureVerboseTestLogging()
 
         System.getenv("TINY_LLAMA_PATH")?.let { environment("TINY_LLAMA_PATH", it) }
         System.getenv("LLAMA_FP16_PATH")?.let { environment("LLAMA_FP16_PATH", it) }
@@ -78,11 +88,7 @@ registerIntegrationTest("hatIntegrationTest",
 
 fun registerBenchmarkTestByPattern(name: String, description: String, testPattern: String) =
     tasks.register<Test>(name) {
-        this.description = description
-        group = "verification"
-
-        testClassesDirs = sourceSets["test"].output.classesDirs
-        classpath = sourceSets["test"].runtimeClasspath
+        configureBaseTestTask(description)
 
         useJUnitPlatform {
             includeTags("benchmark")
@@ -92,25 +98,12 @@ fun registerBenchmarkTestByPattern(name: String, description: String, testPatter
             includeTestsMatching(testPattern)
         }
 
-        jvmArgs(application.applicationDefaultJvmArgs)
-        jvmArgs("-Xmx5g")
-        maxParallelForks = 1
-        forkEvery = 1
-        failFast = false
-        testLogging {
-            showStandardStreams = true
-            events("started", "passed", "failed")
-        }
+        configureLongRunningJvm()
+        configureVerboseTestLogging()
 
         System.getenv("LLAMA_FP16_PATH")?.let { environment("LLAMA_FP16_PATH", it) }
         System.getenv("RUN_OPENCL_BENCHMARKS")?.let { environment("RUN_OPENCL_BENCHMARKS", it) }
     }
-
-registerBenchmarkTestByPattern(
-    "benchmarkKernel",
-    "Runs per-kernel benchmark comparison across Plain Java, HAT Java Seq, HAT Java MT and HAT OpenCL.",
-    "com.arturskowronski.llama3babylon.hat.benchmark.KernelModeInferenceBenchmarkTest"
-)
 
 registerBenchmarkTestByPattern(
     "benchmarkKernelGEMV",
@@ -146,12 +139,6 @@ registerBenchmarkTestByPattern(
     "benchmarkKernelAttention",
     "Runs per-kernel benchmark comparison for Attention.",
     "com.arturskowronski.llama3babylon.hat.benchmark.KernelModeInferenceBenchmarkTest.benchmarkAttentionAcrossModes"
-)
-
-registerBenchmarkTestByPattern(
-    "benchmarkMicroKernelAll",
-    "Runs micro-benchmarks (kernel math only, no end-to-end inference) for all kernels and modes.",
-    "com.arturskowronski.llama3babylon.hat.benchmark.KernelMicroBenchmarkTest"
 )
 
 registerBenchmarkTestByPattern(
@@ -191,9 +178,9 @@ registerBenchmarkTestByPattern(
 )
 
 tasks.register("benchmarkAll") {
-    description = "Runs all benchmark suites (end-to-end, per-kernel, and micro)."
+    description = "Runs all benchmark suites used in CI."
     group = "verification"
-    dependsOn("benchmark", "benchmarkKernelAll", "benchmarkMicroAll")
+    dependsOn("benchmarkDaily", "benchmarkMicroAll")
 }
 
 tasks.register("benchmarkKernelAll") {
@@ -229,24 +216,13 @@ tasks.register("benchmarkMicroAll") {
 }
 
 tasks.register<Test>("regressionTest") {
-    description = "Runs regression-only tests."
-    group = "verification"
-
-    testClassesDirs = sourceSets["test"].output.classesDirs
-    classpath = sourceSets["test"].runtimeClasspath
+    configureBaseTestTask("Runs regression-only tests.")
 
     useJUnitPlatform {
         includeTags("regression")
     }
-    jvmArgs(application.applicationDefaultJvmArgs)
-    jvmArgs("-Xmx5g")
-    maxParallelForks = 1
-    forkEvery = 1
-    failFast = false
-    testLogging {
-        showStandardStreams = true
-        events("started", "passed", "failed")
-    }
+    configureLongRunningJvm()
+    configureVerboseTestLogging()
 
     System.getenv("LLAMA_FP16_PATH")?.let { environment("LLAMA_FP16_PATH", it) }
 }

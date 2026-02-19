@@ -29,17 +29,20 @@ jobs:
             ${{ runner.os }}-babylon-hat-
 
       - name: Install Build Dependencies
+        if: steps.cache-babylon.outputs.cache-hit != 'true'
         run: |
           sudo apt-get update
           sudo apt-get install -y build-essential libx11-dev libxext-dev libxrender-dev libxrandr-dev libxtst-dev libxt-dev libcups2-dev libasound2-dev libfontconfig1-dev autoconf
 
       - name: Setup Boot JDK
+        if: steps.cache-babylon.outputs.cache-hit != 'true'
         uses: actions/setup-java@v4
         with:
           java-version: '25'
           distribution: 'temurin'
 
       - name: Configure and Build Babylon
+        if: steps.cache-babylon.outputs.cache-hit != 'true'
         id: build-jdk
         continue-on-error: true
         run: |
@@ -54,13 +57,14 @@ jobs:
           make images JOBS=$(nproc) CONF=linux-x86_64-server-release
 
       - name: Retry Build if failed
-        if: steps.build-jdk.outcome == 'failure'
+        if: steps.cache-babylon.outputs.cache-hit != 'true' && steps.build-jdk.outcome == 'failure'
         run: |
           cd babylon
           make reconfigure JOBS=$(nproc) CONF=linux-x86_64-server-release
           make images JOBS=$(nproc) CONF=linux-x86_64-server-release
 
       - name: Build HAT
+        if: steps.cache-babylon.outputs.cache-hit != 'true'
         run: |
           cd babylon/hat
           export JAVA_HOME=$(pwd)/../build/linux-x86_64-server-release/images/jdk
