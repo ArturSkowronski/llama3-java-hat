@@ -53,6 +53,33 @@
           "error": "SKIPPED: Set RUN_OPENCL_BENCHMARKS=true to enable"
         }
       }
+    },
+    {
+      "date": "2026-02-19T13:20:45Z",
+      "commit": "383309b1862ab99435b0caca705731724aa525d5",
+      "results": {
+        "Plain Java": {
+          "load_sec": 9.139021398,
+          "infer_sec": 307.042356691,
+          "tok_per_sec": 0.026055037116755216
+        },
+        "HAT Java Sequential": {
+          "load_sec": 9.056386863,
+          "infer_sec": 431.681679961,
+          "tok_per_sec": 0.018532173986912658
+        },
+        "HAT Java MT": {
+          "load_sec": 9.374655179,
+          "infer_sec": 210.198314876,
+          "tok_per_sec": 0.03805929654916288
+        },
+        "HAT OpenCL GPU": {
+          "load_sec": -1.0,
+          "infer_sec": -1,
+          "tok_per_sec": -1,
+          "error": "SKIPPED: Set RUN_OPENCL_BENCHMARKS=true to enable"
+        }
+      }
     }
   ]
 }
