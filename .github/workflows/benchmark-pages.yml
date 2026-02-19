@@ -1,0 +1,189 @@
+name: Benchmark Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-babylon:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Babylon
+        uses: actions/checkout@v4
+        with:
+          repository: openjdk/babylon
+          path: babylon
+          ref: code-reflection
+
+      - name: Cache Babylon JDK and HAT
+        id: cache-babylon
+        uses: actions/cache@v4
+        with:
+          path: |
+            babylon/build
+            babylon/hat/build
+          key: ${{ runner.os }}-babylon-hat-bench-${{ hashFiles('babylon/.git/HEAD') }}
+          restore-keys: |
+            ${{ runner.os }}-babylon-hat-bench-
+            ${{ runner.os }}-babylon-hat-
+
+      - name: Install Build Dependencies
+        if: steps.cache-babylon.outputs.cache-hit != 'true'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential libx11-dev libxext-dev libxrender-dev libxrandr-dev libxtst-dev libxt-dev libcups2-dev libasound2-dev libfontconfig1-dev autoconf
+
+      - name: Setup Boot JDK
+        if: steps.cache-babylon.outputs.cache-hit != 'true'
+        uses: actions/setup-java@v4
+        with:
+          java-version: '25'
+          distribution: 'temurin'
+
+      - name: Configure and Build Babylon
+        if: steps.cache-babylon.outputs.cache-hit != 'true'
+        id: build-jdk
+        continue-on-error: true
+        run: |
+          cd babylon
+          if [ -f build/linux-x86_64-server-release/spec.gmk ]; then
+            if ! make JOBS=$(nproc) CONF=linux-x86_64-server-release check-conf > /dev/null 2>&1; then
+              make reconfigure JOBS=$(nproc) CONF=linux-x86_64-server-release
+            fi
+          else
+            bash configure --with-conf-name=linux-x86_64-server-release --with-debug-level=release --with-native-debug-symbols=none --disable-warnings-as-errors
+          fi
+          make images JOBS=$(nproc) CONF=linux-x86_64-server-release
+
+      - name: Retry Build if failed
+        if: steps.cache-babylon.outputs.cache-hit != 'true' && steps.build-jdk.outcome == 'failure'
+        run: |
+          cd babylon
+          make reconfigure JOBS=$(nproc) CONF=linux-x86_64-server-release
+          make images JOBS=$(nproc) CONF=linux-x86_64-server-release
+
+      - name: Build HAT
+        if: steps.cache-babylon.outputs.cache-hit != 'true'
+        run: |
+          cd babylon/hat
+          export JAVA_HOME=$(pwd)/../build/linux-x86_64-server-release/images/jdk
+          export PATH=$JAVA_HOME/bin:$PATH
+          bash hat/bootstrap.bash
+          java -cp hat/job.jar --enable-preview --source 26 hat.java bld
+
+      - name: Upload Babylon Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: babylon-jdk-bench-pages
+          path: |
+            babylon/build/linux-x86_64-server-release/images/jdk
+            babylon/hat/build
+          include-hidden-files: true
+          retention-days: 1
+
+  run-benchmarks:
+    needs: build-babylon
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - name: Checkout Project
+        uses: actions/checkout@v4
+
+      - name: Download Babylon Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: babylon-jdk-bench-pages
+          path: babylon-jdk
+
+      - name: Setup Environment
+        run: |
+          JDK_PATH=babylon-jdk/build/linux-x86_64-server-release/images/jdk
+          chmod -R +x $JDK_PATH/bin/
+          find $JDK_PATH/lib -type f -name "jspawnhelper" -exec chmod +x {} \;
+          find $JDK_PATH/lib -type f -name "*.so" -exec chmod +x {} \;
+          echo "JAVA_BABYLON_ROOT=$(pwd)/babylon-jdk" >> $GITHUB_ENV
+          chmod +x gradlew
+
+      - name: Cache Llama 3.2 1B Model
+        id: cache-llama
+        uses: actions/cache@v4
+        with:
+          path: Llama-3.2-1B-Instruct-f16.gguf
+          key: llama-3.2-1b-instruct-f16-gguf
+
+      - name: Download Llama 3.2 1B Instruct FP16
+        if: steps.cache-llama.outputs.cache-hit != 'true'
+        run: |
+          chmod +x scripts/download_llama_fp16.sh
+          ./scripts/download_llama_fp16.sh
+
+      - name: Build Project
+        run: |
+          export JAVA_HOME=$JAVA_BABYLON_ROOT/build/linux-x86_64-server-release/images/jdk
+          export PATH=$JAVA_HOME/bin:$PATH
+          ./gradlew build -x test --console=plain
+
+      - name: Run Inference Benchmarks
+        env:
+          CI: "true"
+          LLAMA_FP16_PATH: ${{ github.workspace }}/Llama-3.2-1B-Instruct-f16.gguf
+        run: |
+          export JAVA_HOME=$JAVA_BABYLON_ROOT/build/linux-x86_64-server-release/images/jdk
+          export PATH=$JAVA_HOME/bin:$PATH
+          ./gradlew benchmarkInference --console=plain
+
+      - name: Upload Benchmark Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results-tsv
+          path: build/benchmark-results/results.tsv
+          retention-days: 7
+
+  deploy-pages:
+    needs: run-benchmarks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Project
+        uses: actions/checkout@v4
+
+      - name: Download Benchmark Results
+        uses: actions/download-artifact@v4
+        with:
+          name: benchmark-results-tsv
+          path: benchmark-results
+
+      - name: Fetch existing benchmark history from gh-pages
+        run: |
+          git fetch origin gh-pages:gh-pages 2>/dev/null || true
+          mkdir -p existing-data
+          git show gh-pages:data/benchmark-history.json > existing-data/benchmark-history.json 2>/dev/null || echo '{"runs":[]}' > existing-data/benchmark-history.json
+
+      - name: Install jq
+        run: sudo apt-get install -y jq
+
+      - name: Generate benchmark page
+        env:
+          GITHUB_SHA: ${{ github.sha }}
+          RUN_DATE: ${{ github.event.head_commit.timestamp || github.event.repository.updated_at }}
+        run: |
+          # Use current UTC time if no timestamp available
+          export RUN_DATE="${RUN_DATE:-$(date -u +%Y-%m-%dT%H:%M:%SZ)}"
+          chmod +x .github/scripts/update-benchmark-data.sh
+          .github/scripts/update-benchmark-data.sh \
+            benchmark-results/results.tsv \
+            existing-data/benchmark-history.json \
+            docs/benchmark-page/index.html \
+            deploy
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./deploy
+          keep_files: false
+          commit_message: "Update benchmark results (${{ github.sha }})"

@@ -177,6 +177,41 @@ registerBenchmarkTestByPattern(
     "com.arturskowronski.llama3babylon.hat.benchmark.KernelMicroBenchmarkTest.benchmarkMicroAttention"
 )
 
+registerBenchmarkTestByPattern(
+    "benchmarkInferencePlainJava",
+    "Runs inference benchmark for Plain Java.",
+    "com.arturskowronski.llama3babylon.hat.benchmark.PlainJavaInferenceBenchmarkTest.benchmarkPlainJava"
+)
+
+registerBenchmarkTestByPattern(
+    "benchmarkInferenceHatSeq",
+    "Runs inference benchmark for HAT Java Sequential.",
+    "com.arturskowronski.llama3babylon.hat.benchmark.HatJavaSequentialInferenceBenchmarkTest.benchmarkHatJavaSequential"
+)
+
+registerBenchmarkTestByPattern(
+    "benchmarkInferenceHatMt",
+    "Runs inference benchmark for HAT Java Multi-Threaded.",
+    "com.arturskowronski.llama3babylon.hat.benchmark.HatJavaMtInferenceBenchmarkTest.benchmarkHatJavaMt"
+)
+
+registerBenchmarkTestByPattern(
+    "benchmarkInferenceHatOpencl",
+    "Runs inference benchmark for HAT OpenCL GPU.",
+    "com.arturskowronski.llama3babylon.hat.benchmark.HatOpenclInferenceBenchmarkTest.benchmarkHatOpencl"
+)
+
+tasks.register("benchmarkInference") {
+    description = "Runs all 4 inference benchmarks (Plain Java + HAT backends)."
+    group = "verification"
+    dependsOn(
+        "benchmarkInferencePlainJava",
+        "benchmarkInferenceHatSeq",
+        "benchmarkInferenceHatMt",
+        "benchmarkInferenceHatOpencl"
+    )
+}
+
 tasks.register("benchmarkAll") {
     description = "Runs all benchmark suites used in CI."
     group = "verification"
