@@ -90,6 +90,10 @@ final class InferenceBenchmarkSupport {
         LlamaInference inference;
         try {
             inference = supplier.create();
+        } catch (java.util.ServiceConfigurationError e) {
+            String msg = "No runtime available";
+            System.out.println(">>> SKIPPED " + name + ": " + msg + " (" + e.getMessage() + ")");
+            return new BenchmarkResult(name, -1, -1, -1, "SKIPPED: " + msg);
         } catch (Throwable e) {
             System.out.println(">>> FAILED to initialize " + name + ": " + e);
             return new BenchmarkResult(name, -1, -1, -1, e.getClass().getSimpleName());
