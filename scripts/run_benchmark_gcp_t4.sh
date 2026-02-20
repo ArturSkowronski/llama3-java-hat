@@ -11,6 +11,7 @@ Options:
   --project <id>            GCP project ID (default: gcloud active project)
   --zone <zone>             GCP zone (default: us-central1-a)
   --instance <name>         VM name (default: llama3-benchmark-t4)
+  --machine-type <type>     GCE machine type (default: n1-standard-4)
   --task <gradle-task>      Gradle benchmark task (default: benchmarkAll)
   --repo <url>              Git repository URL (default: git remote origin)
   --branch <name>           Git branch to benchmark (default: current local branch)
@@ -47,6 +48,7 @@ require_cmd() {
 PROJECT=""
 ZONE="us-central1-a"
 INSTANCE="llama3-benchmark-t4"
+MACHINE_TYPE="n1-standard-4"
 TASK="benchmarkAll"
 REPO_URL=""
 BRANCH=""
@@ -70,6 +72,7 @@ while [[ $# -gt 0 ]]; do
     --project) PROJECT="$2"; shift 2 ;;
     --zone) ZONE="$2"; shift 2 ;;
     --instance) INSTANCE="$2"; shift 2 ;;
+    --machine-type) MACHINE_TYPE="$2"; shift 2 ;;
     --task) TASK="$2"; shift 2 ;;
     --repo) REPO_URL="$2"; shift 2 ;;
     --branch) BRANCH="$2"; shift 2 ;;
@@ -123,7 +126,7 @@ fi
 echo "Project: ${PROJECT}"
 echo "Zone: ${ZONE}"
 echo "Instance: ${INSTANCE}"
-echo "Machine: n1-standard-4 + nvidia-tesla-t4"
+echo "Machine: ${MACHINE_TYPE} + nvidia-tesla-t4"
 echo "Repo: ${REPO_URL}"
 echo "Branch: ${BRANCH}"
 echo "Task: ${TASK}"
@@ -164,7 +167,7 @@ if ! gcloud compute instances describe "${INSTANCE}" --project "${PROJECT}" --zo
   gcloud compute instances create "${INSTANCE}" \
     --project "${PROJECT}" \
     --zone "${ZONE}" \
-    --machine-type "n1-standard-4" \
+    --machine-type "${MACHINE_TYPE}" \
     --accelerator "type=nvidia-tesla-t4,count=1" \
     --maintenance-policy "TERMINATE" \
     --provisioning-model "STANDARD" \

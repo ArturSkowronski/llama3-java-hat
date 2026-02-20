@@ -18,6 +18,11 @@ on:
         required: false
         default: "llama3-benchmark-t4"
         type: string
+      gcp_machine_type:
+        description: "GCP machine type"
+        required: false
+        default: "n1-standard-4"
+        type: string
       benchmark_task:
         description: "Gradle benchmark task to run (use benchmarkAll for full suite)"
         required: false
@@ -66,6 +71,7 @@ jobs:
             --project "${{ inputs.gcp_project }}" \
             --zone "${{ inputs.gcp_zone }}" \
             --instance "${{ inputs.gcp_instance }}" \
+            --machine-type "${{ inputs.gcp_machine_type }}" \
             --task "${{ inputs.benchmark_task }}" \
             --destroy-instance
 
