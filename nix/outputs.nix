@@ -26,6 +26,11 @@ flake-utils.lib.eachDefaultSystem (
       inherit pkgs gradle2nixBuilders babylon-jdk hat-artifacts;
     };
 
+    # ── Test checks ──────────────────────────────────────────────────
+    testChecks = import ./checks {
+      inherit pkgs gradle2nixBuilders babylon-jdk hat-artifacts;
+    };
+
     # ── Runner wrapper ─────────────────────────────────────────────
     llama3-runner = pkgs.writeShellApplication {
       name = "llama3-java-hat";
@@ -82,6 +87,10 @@ flake-utils.lib.eachDefaultSystem (
 
     checks = {
       formatting = treeFmt.config.build.check self;
+      inherit (testChecks) unit-tests;
+      # Integration checks are impure — run with:
+      #   LLAMA_FP16_PATH=./model.gguf nix build .#checks.x86_64-linux.plain-integration-tests --impure
+      inherit (testChecks) plain-integration-tests hat-integration-tests;
     };
 
     formatter = treeFmt.config.build.wrapper;
