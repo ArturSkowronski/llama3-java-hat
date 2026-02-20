@@ -1,6 +1,13 @@
 package com.arturskowronski.llama3babylon.hat;
 
 import com.arturskowronski.llama3babylon.hat.kernels.GEMV;
+import com.arturskowronski.llama3babylon.hat.kernels.IAttention;
+import com.arturskowronski.llama3babylon.hat.kernels.IGEMV;
+import com.arturskowronski.llama3babylon.hat.kernels.IKernelFactory;
+import com.arturskowronski.llama3babylon.hat.kernels.IRMSNorm;
+import com.arturskowronski.llama3babylon.hat.kernels.IRoPE;
+import com.arturskowronski.llama3babylon.hat.kernels.ISiLU;
+import com.arturskowronski.llama3babylon.hat.kernels.ISoftmax;
 import com.arturskowronski.llama3babylon.hat.kernels.PlainJavaKernelFactory;
 import com.arturskowronski.llama3babylon.hat.utils.MinimalGGUFGenerator;
 import hat.buffer.F32Array;
@@ -10,7 +17,6 @@ import org.junit.jupiter.api.io.TempDir;
 import java.io.IOException;
 import java.nio.file.Path;
 
-import java.lang.invoke.MethodHandles;
 import java.util.Random;
 
 import hat.Accelerator;
@@ -104,7 +110,8 @@ public class TransformerBlockTest {
         new GEMV(acc).apply(primingMatrix, primingInput, primingOutput,
                 LlamaModel.INTERMEDIATE_SIZE, LlamaModel.HIDDEN_SIZE);
 
-        TransformerBlock block = new TransformerBlock(model, 0, new PlainJavaKernelFactory());
+        CountingKernelFactory factory = new CountingKernelFactory(new PlainJavaKernelFactory());
+        TransformerBlock block = new TransformerBlock(model, 0, factory);
 
         F32Array x = F32Array.create(acc, LlamaModel.HIDDEN_SIZE);
         for (int i = 0; i < LlamaModel.HIDDEN_SIZE; i++) {
@@ -127,6 +134,9 @@ public class TransformerBlockTest {
             if (val != 0.0f) allZero = false;
         }
         assertFalse(allZero, "Output should not be all zeros");
+        assertTrue(factory.attentionScoreCalls > 0, "Attention.computeScores should be used in transformer forward");
+        assertTrue(factory.attentionValueCalls > 0, "Attention.computeValues should be used in transformer forward");
+        assertTrue(factory.softmaxApplyCalls > 0, "Softmax.apply should be used in transformer forward");
 
         // Note: KV cache population and output-differs-from-input are validated
         // by the integration test with a real model. The HAT sequential backend
@@ -140,5 +150,71 @@ public class TransformerBlockTest {
             arr[i] = (rng.nextFloat() - 0.5f) * 2 * scale;
         }
         return arr;
+    }
+
+    private static class CountingKernelFactory implements IKernelFactory {
+        private final IKernelFactory delegate;
+        int attentionScoreCalls;
+        int attentionValueCalls;
+        int softmaxApplyCalls;
+
+        CountingKernelFactory(IKernelFactory delegate) {
+            this.delegate = delegate;
+        }
+
+        @Override
+        public IGEMV createGEMV(Accelerator acc) {
+            return delegate.createGEMV(acc);
+        }
+
+        @Override
+        public IRMSNorm createRMSNorm(Accelerator acc) {
+            return delegate.createRMSNorm(acc);
+        }
+
+        @Override
+        public IRoPE createRoPE(Accelerator acc) {
+            return delegate.createRoPE(acc);
+        }
+
+        @Override
+        public ISiLU createSiLU(Accelerator acc) {
+            return delegate.createSiLU(acc);
+        }
+
+        @Override
+        public ISoftmax createSoftmax(Accelerator acc) {
+            ISoftmax kernel = delegate.createSoftmax(acc);
+            return new ISoftmax() {
+                @Override
+                public void apply(F32Array input, int size) {
+                    softmaxApplyCalls++;
+                    kernel.apply(input, size);
+                }
+
+                @Override
+                public void applyRow(F32Array input, int rowOffset, int rowSize) {
+                    kernel.applyRow(input, rowOffset, rowSize);
+                }
+            };
+        }
+
+        @Override
+        public IAttention createAttention(Accelerator acc) {
+            IAttention kernel = delegate.createAttention(acc);
+            return new IAttention() {
+                @Override
+                public void computeScores(F32Array query, F32Array keys, F32Array scores, int seqLen, int headDim) {
+                    attentionScoreCalls++;
+                    kernel.computeScores(query, keys, scores, seqLen, headDim);
+                }
+
+                @Override
+                public void computeValues(F32Array scores, F32Array values, F32Array output, int seqLen, int headDim) {
+                    attentionValueCalls++;
+                    kernel.computeValues(scores, values, output, seqLen, headDim);
+                }
+            };
+        }
     }
 }

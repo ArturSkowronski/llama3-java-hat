@@ -1,16 +1,7 @@
 package com.arturskowronski.llama3babylon.hat.kernels;
 
 import hat.Accelerator;
-import hat.ComputeContext;
-import hat.KernelContext;
-import hat.NDRange;
 import hat.buffer.F32Array;
-import jdk.incubator.code.Reflect;
-
-import java.lang.invoke.MethodHandles;
-
-import static optkl.ifacemapper.MappableIface.RO;
-import static optkl.ifacemapper.MappableIface.WO;
 
 /**
  * Attention kernel for Llama 3.2 1B Instruct (FP16).
@@ -25,10 +16,8 @@ import static optkl.ifacemapper.MappableIface.WO;
  */
 public class Attention implements IAttention {
 
-    private final Accelerator accelerator;
-
     public Attention(Accelerator accelerator) {
-        this.accelerator = accelerator;
+        // Kept for factory symmetry with HAT implementation.
     }
 
     /**
@@ -42,25 +31,14 @@ public class Attention implements IAttention {
      */
     public void computeScores(F32Array query, F32Array keys, F32Array scores, int seqLen, int headDim) {
         float scale = 1.0f / (float) Math.sqrt(headDim);
-        accelerator.compute((Accelerator.@Reflect Compute) cc ->
-                dispatchScores(cc, query, keys, scores, seqLen, headDim, scale)
-        );
-    }
-
-    @Reflect
-    public static void scoresKernel(@RO KernelContext kc, @RO F32Array query, @RO F32Array keys, @WO F32Array scores, @RO int headDim, @RO float scale) {
-        int t = kc.gix; // target token index in sequence
-        float sum = 0.0f;
-        int keyOffset = t * headDim;
-        for (int i = 0; i < headDim; i++) {
-            sum += query.array(i) * keys.array(keyOffset + i);
+        for (int t = 0; t < seqLen; t++) {
+            float sum = 0.0f;
+            int keyOffset = t * headDim;
+            for (int i = 0; i < headDim; i++) {
+                sum += query.array(i) * keys.array(keyOffset + i);
+            }
+            scores.array(t, sum * scale);
         }
-        scores.array(t, sum * scale);
-    }
-
-    @Reflect
-    public static void dispatchScores(@RO ComputeContext cc, @RO F32Array query, @RO F32Array keys, @WO F32Array scores, @RO int seqLen, @RO int headDim, @RO float scale) {
-        cc.dispatchKernel(NDRange.of1D(seqLen), kc -> scoresKernel(kc, query, keys, scores, headDim, scale));
     }
 
     /**
@@ -73,24 +51,13 @@ public class Attention implements IAttention {
      * @param headDim dimension of each head
      */
     public void computeValues(F32Array scores, F32Array values, F32Array output, int seqLen, int headDim) {
-        accelerator.compute((Accelerator.@Reflect Compute) cc ->
-                dispatchValues(cc, scores, values, output, seqLen, headDim)
-        );
-    }
-
-    @Reflect
-    public static void valuesKernel(@RO KernelContext kc, @RO F32Array scores, @RO F32Array values, @WO F32Array output, @RO int seqLen, @RO int headDim) {
-        int i = kc.gix; // index in head_dim
-        float sum = 0.0f;
-        for (int t = 0; t < seqLen; t++) {
-            sum += scores.array(t) * values.array(t * headDim + i);
+        for (int i = 0; i < headDim; i++) {
+            float sum = 0.0f;
+            for (int t = 0; t < seqLen; t++) {
+                sum += scores.array(t) * values.array(t * headDim + i);
+            }
+            output.array(i, sum);
         }
-        output.array(i, sum);
-    }
-
-    @Reflect
-    public static void dispatchValues(@RO ComputeContext cc, @RO F32Array scores, @RO F32Array values, @WO F32Array output, @RO int seqLen, @RO int headDim) {
-        cc.dispatchKernel(NDRange.of1D(headDim), kc -> valuesKernel(kc, scores, values, output, seqLen, headDim));
     }
 
 }
