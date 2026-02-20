@@ -9,6 +9,11 @@
       inputs.systems.follows = "systems";
     };
     flake-compat.url = "github:lix-project/flake-compat";
+
+    gradle2nix = {
+      url = "github:tadfisher/gradle2nix/v2";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs = inputs: import ./nix/outputs.nix inputs;

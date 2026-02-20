@@ -1,6 +1,7 @@
 { self
 , nixpkgs
 , flake-utils
+, gradle2nix
 , ...
 }@inputs:
 flake-utils.lib.eachDefaultSystem (
@@ -10,16 +11,23 @@ flake-utils.lib.eachDefaultSystem (
       inherit system;
     };
 
+    gradle2nixBuilders = gradle2nix.builders.${system};
+
     # ── Babylon JDK (OpenJDK + Code Reflection) ─────────────────────
     babylon-jdk = import ./packages/babylon-jdk { inherit pkgs; };
 
     # ── HAT artifacts (JARs + native libs) ───────────────────────────
     hat-artifacts = import ./packages/hat { inherit pkgs babylon-jdk; };
+
+    # ── llama3-java-hat offline Gradle build ─────────────────────────
+    llama3-java-hat = import ./packages/llama3-java-hat {
+      inherit pkgs gradle2nixBuilders babylon-jdk hat-artifacts;
+    };
   in
   {
     packages = {
-      default = hat-artifacts;
-      inherit babylon-jdk hat-artifacts;
+      default = llama3-java-hat;
+      inherit babylon-jdk hat-artifacts llama3-java-hat;
     };
 
     devShells.default = pkgs.mkShell {
