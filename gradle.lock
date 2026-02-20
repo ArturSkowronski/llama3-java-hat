@@ -1,0 +1,172 @@
+{
+  "org.apiguardian:apiguardian-api:1.1.2": {
+    "apiguardian-api-1.1.2.jar": {
+      "url": "https://repo.maven.apache.org/maven2/org/apiguardian/apiguardian-api/1.1.2/apiguardian-api-1.1.2.jar",
+      "hash": "sha256-tQlEisUG1gcxnxglN/CzXXEAdYLsdBgyofER5bW3Czg="
+    },
+    "apiguardian-api-1.1.2.module": {
+      "url": "https://repo.maven.apache.org/maven2/org/apiguardian/apiguardian-api/1.1.2/apiguardian-api-1.1.2.module",
+      "hash": "sha256-4IAoExN1s1fR0oc06aT7QhbahLJAZByz7358fWKCI/w="
+    },
+    "apiguardian-api-1.1.2.pom": {
+      "url": "https://repo.maven.apache.org/maven2/org/apiguardian/apiguardian-api/1.1.2/apiguardian-api-1.1.2.pom",
+      "hash": "sha256-MjVQgdEJCVw9XTdNWkO09MG3XVSemD71ByPidy5TAqA="
+    }
+  },
+  "org.gradle.toolchains:foojay-resolver:1.0.0": {
+    "foojay-resolver-1.0.0.jar": {
+      "url": "https://plugins.gradle.org/m2/org/gradle/toolchains/foojay-resolver/1.0.0/foojay-resolver-1.0.0.jar",
+      "hash": "sha256-eLhqR9/fdpfJvRXaeJg/2A2nJH1uAvwQa98H4DiLYKg="
+    },
+    "foojay-resolver-1.0.0.module": {
+      "url": "https://plugins.gradle.org/m2/org/gradle/toolchains/foojay-resolver/1.0.0/foojay-resolver-1.0.0.module",
+      "hash": "sha256-YZDPDkLmZMEeGsCnhWmasCtUnOo0OSxnnzbYosVQ/Lk="
+    },
+    "foojay-resolver-1.0.0.pom": {
+      "url": "https://plugins.gradle.org/m2/org/gradle/toolchains/foojay-resolver/1.0.0/foojay-resolver-1.0.0.pom",
+      "hash": "sha256-m8SLSeQi2e2rw5asGNiwQd/CIhLX+ujjVmfShdSBApo="
+    }
+  },
+  "org.gradle.toolchains.foojay-resolver-convention:org.gradle.toolchains.foojay-resolver-convention.gradle.plugin:1.0.0": {
+    "org.gradle.toolchains.foojay-resolver-convention.gradle.plugin-1.0.0.pom": {
+      "url": "https://plugins.gradle.org/m2/org/gradle/toolchains/foojay-resolver-convention/org.gradle.toolchains.foojay-resolver-convention.gradle.plugin/1.0.0/org.gradle.toolchains.foojay-resolver-convention.gradle.plugin-1.0.0.pom",
+      "hash": "sha256-8TMkmhh1Suah0nAdANhJsa+6ewaD3bX8GxinAHHOwvo="
+    }
+  },
+  "org.jspecify:jspecify:1.0.0": {
+    "jspecify-1.0.0.jar": {
+      "url": "https://repo.maven.apache.org/maven2/org/jspecify/jspecify/1.0.0/jspecify-1.0.0.jar",
+      "hash": "sha256-H61ua+dVd4Hk0zcp1Jrhzcj92m/kd7sMxozjUer9+6s="
+    },
+    "jspecify-1.0.0.module": {
+      "url": "https://repo.maven.apache.org/maven2/org/jspecify/jspecify/1.0.0/jspecify-1.0.0.module",
+      "hash": "sha256-0wfKd6VOGKwe8artTlu+AUvS9J8p4dL4E+R8J4KDGVs="
+    },
+    "jspecify-1.0.0.pom": {
+      "url": "https://repo.maven.apache.org/maven2/org/jspecify/jspecify/1.0.0/jspecify-1.0.0.pom",
+      "hash": "sha256-zauSmjuVIR9D0gkMXi0N/oRllg43i8MrNYQdqzJEM6Y="
+    }
+  },
+  "org.junit:junit-bom:6.0.0": {
+    "junit-bom-6.0.0.module": {
+      "url": "https://repo.maven.apache.org/maven2/org/junit/junit-bom/6.0.0/junit-bom-6.0.0.module",
+      "hash": "sha256-R98chw1F2mEXtKYNzAYhRmrD332s6I2aL5TXhAYkbkU="
+    },
+    "junit-bom-6.0.0.pom": {
+      "url": "https://repo.maven.apache.org/maven2/org/junit/junit-bom/6.0.0/junit-bom-6.0.0.pom",
+      "hash": "sha256-s9mDL1wRu7aw5ihRuTqinSeMOfsadR63cbRtAEohYhk="
+    }
+  },
+  "org.junit.jupiter:junit-jupiter:6.0.0": {
+    "junit-jupiter-6.0.0.jar": {
+      "url": "https://repo.maven.apache.org/maven2/org/junit/jupiter/junit-jupiter/6.0.0/junit-jupiter-6.0.0.jar",
+      "hash": "sha256-jb8LIX4usBPWU9kW/BBgkklrfMrI8IQyiYHlXjZzrnE="
+    },
+    "junit-jupiter-6.0.0.module": {
+      "url": "https://repo.maven.apache.org/maven2/org/junit/jupiter/junit-jupiter/6.0.0/junit-jupiter-6.0.0.module",
+      "hash": "sha256-YdlnTuitkcdk2IbQzTFjO1up967ad6okIPglNaJVXOE="
+    },
+    "junit-jupiter-6.0.0.pom": {
+      "url": "https://repo.maven.apache.org/maven2/org/junit/jupiter/junit-jupiter/6.0.0/junit-jupiter-6.0.0.pom",
+      "hash": "sha256-9j4gTo0IDEzis05lnzGVzHHYpKZrcyqAW5pv0rjyVrs="
+    }
+  },
+  "org.junit.jupiter:junit-jupiter-api:6.0.0": {
+    "junit-jupiter-api-6.0.0.jar": {
+      "url": "https://repo.maven.apache.org/maven2/org/junit/jupiter/junit-jupiter-api/6.0.0/junit-jupiter-api-6.0.0.jar",
+      "hash": "sha256-iNaQ0tNzzWYXB3DDF5dxls6eRl8jiJMPS8lmXohzhfY="
+    },
+    "junit-jupiter-api-6.0.0.module": {
+      "url": "https://repo.maven.apache.org/maven2/org/junit/jupiter/junit-jupiter-api/6.0.0/junit-jupiter-api-6.0.0.module",
+      "hash": "sha256-ulAS9rG1AydsxsokGUPC2bJuJFkCXowg3VjsMeumcXU="
+    },
+    "junit-jupiter-api-6.0.0.pom": {
+      "url": "https://repo.maven.apache.org/maven2/org/junit/jupiter/junit-jupiter-api/6.0.0/junit-jupiter-api-6.0.0.pom",
+      "hash": "sha256-rNeSzwaDpEvqadPP/uujfRm5kAwdnogijjKfJsRBNQM="
+    }
+  },
+  "org.junit.jupiter:junit-jupiter-engine:6.0.0": {
+    "junit-jupiter-engine-6.0.0.jar": {
+      "url": "https://repo.maven.apache.org/maven2/org/junit/jupiter/junit-jupiter-engine/6.0.0/junit-jupiter-engine-6.0.0.jar",
+      "hash": "sha256-j6HWw32ymm70cYO0mFHudnbwj9exwntozPOk5XzgL0g="
+    },
+    "junit-jupiter-engine-6.0.0.module": {
+      "url": "https://repo.maven.apache.org/maven2/org/junit/jupiter/junit-jupiter-engine/6.0.0/junit-jupiter-engine-6.0.0.module",
+      "hash": "sha256-/BOeA32ssQfRpQ6FVVg2h0+pwgKIwx17a86To9PoUEw="
+    },
+    "junit-jupiter-engine-6.0.0.pom": {
+      "url": "https://repo.maven.apache.org/maven2/org/junit/jupiter/junit-jupiter-engine/6.0.0/junit-jupiter-engine-6.0.0.pom",
+      "hash": "sha256-qzyiIIkCJq8xuRVzeT+n8APHqBdSuskFZx3Krum5fXM="
+    }
+  },
+  "org.junit.jupiter:junit-jupiter-params:6.0.0": {
+    "junit-jupiter-params-6.0.0.jar": {
+      "url": "https://repo.maven.apache.org/maven2/org/junit/jupiter/junit-jupiter-params/6.0.0/junit-jupiter-params-6.0.0.jar",
+      "hash": "sha256-IIR+RcVT1R45JEbgM1UGnxOP4MUekdfvG9v/wNOvBFQ="
+    },
+    "junit-jupiter-params-6.0.0.module": {
+      "url": "https://repo.maven.apache.org/maven2/org/junit/jupiter/junit-jupiter-params/6.0.0/junit-jupiter-params-6.0.0.module",
+      "hash": "sha256-VfWJwqiUZt40HEAL8AzdGihwp+bc1oUL2tcyLbONc7c="
+    },
+    "junit-jupiter-params-6.0.0.pom": {
+      "url": "https://repo.maven.apache.org/maven2/org/junit/jupiter/junit-jupiter-params/6.0.0/junit-jupiter-params-6.0.0.pom",
+      "hash": "sha256-91zeM8lEa0XsSlqaKC3LWyv7dj1KMKshv8+EgqZg5UI="
+    }
+  },
+  "org.junit.platform:junit-platform-commons:6.0.0": {
+    "junit-platform-commons-6.0.0.jar": {
+      "url": "https://repo.maven.apache.org/maven2/org/junit/platform/junit-platform-commons/6.0.0/junit-platform-commons-6.0.0.jar",
+      "hash": "sha256-huj6+H8xUaPVRYUIUqDyzFXqiiQ07ungj4OIHFLVWZI="
+    },
+    "junit-platform-commons-6.0.0.module": {
+      "url": "https://repo.maven.apache.org/maven2/org/junit/platform/junit-platform-commons/6.0.0/junit-platform-commons-6.0.0.module",
+      "hash": "sha256-oNE82wfx2950q74HZmT/XcQEOtXRO/+UD3i55gTyElE="
+    },
+    "junit-platform-commons-6.0.0.pom": {
+      "url": "https://repo.maven.apache.org/maven2/org/junit/platform/junit-platform-commons/6.0.0/junit-platform-commons-6.0.0.pom",
+      "hash": "sha256-lDFdk3FOzUB6kg2TOcj0S0DPCEBBMWMu1/m3dwzxCgU="
+    }
+  },
+  "org.junit.platform:junit-platform-engine:6.0.0": {
+    "junit-platform-engine-6.0.0.jar": {
+      "url": "https://repo.maven.apache.org/maven2/org/junit/platform/junit-platform-engine/6.0.0/junit-platform-engine-6.0.0.jar",
+      "hash": "sha256-b4GELpwT6ZfKxmtEYUUi82OUGeI4iuLQAMS8CmuS2T8="
+    },
+    "junit-platform-engine-6.0.0.module": {
+      "url": "https://repo.maven.apache.org/maven2/org/junit/platform/junit-platform-engine/6.0.0/junit-platform-engine-6.0.0.module",
+      "hash": "sha256-GcijGiINhY0hWr20mfYjuLxy/ig3jMBABI0ymTCliSE="
+    },
+    "junit-platform-engine-6.0.0.pom": {
+      "url": "https://repo.maven.apache.org/maven2/org/junit/platform/junit-platform-engine/6.0.0/junit-platform-engine-6.0.0.pom",
+      "hash": "sha256-TD7A1PapQGLOgr3kLuvtHya5m7XLHWl24VmPzF+KSS0="
+    }
+  },
+  "org.junit.platform:junit-platform-launcher:6.0.0": {
+    "junit-platform-launcher-6.0.0.jar": {
+      "url": "https://repo.maven.apache.org/maven2/org/junit/platform/junit-platform-launcher/6.0.0/junit-platform-launcher-6.0.0.jar",
+      "hash": "sha256-Xwl7AMZxS7cez7XexitZu0wveJdj+v0ezpbE7w5sKA8="
+    },
+    "junit-platform-launcher-6.0.0.module": {
+      "url": "https://repo.maven.apache.org/maven2/org/junit/platform/junit-platform-launcher/6.0.0/junit-platform-launcher-6.0.0.module",
+      "hash": "sha256-/OwWMsXFlyf/nn6jCKmTh9ci/6iC2FzKUFKv7Iw47ug="
+    },
+    "junit-platform-launcher-6.0.0.pom": {
+      "url": "https://repo.maven.apache.org/maven2/org/junit/platform/junit-platform-launcher/6.0.0/junit-platform-launcher-6.0.0.pom",
+      "hash": "sha256-RwG8mhY9lbI1zhatdt4Z8qyFTFyjT689LsThAYsIzHQ="
+    }
+  },
+  "org.opentest4j:opentest4j:1.3.0": {
+    "opentest4j-1.3.0.jar": {
+      "url": "https://repo.maven.apache.org/maven2/org/opentest4j/opentest4j/1.3.0/opentest4j-1.3.0.jar",
+      "hash": "sha256-SOLfY2yrZWPO1k3N/4q7I1VifLI27wvzdZhoLd90Lxs="
+    },
+    "opentest4j-1.3.0.module": {
+      "url": "https://repo.maven.apache.org/maven2/org/opentest4j/opentest4j/1.3.0/opentest4j-1.3.0.module",
+      "hash": "sha256-SL8dbItdyU90ZSvReQD2VN63FDUCSM9ej8onuQkMjg0="
+    },
+    "opentest4j-1.3.0.pom": {
+      "url": "https://repo.maven.apache.org/maven2/org/opentest4j/opentest4j/1.3.0/opentest4j-1.3.0.pom",
+      "hash": "sha256-m/fP/EEPPoNywlIleN+cpW2dQ72TfjCUhwbCMqlDs1U="
+    }
+  }
+}
