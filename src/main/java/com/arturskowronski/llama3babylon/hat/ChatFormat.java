@@ -4,7 +4,6 @@ import java.util.*;
 
 /**
  * Llama 3 Instruct chat template formatter.
- *
  * Produces token sequences like:
  * {@code <|begin_of_text|><|start_header_id|>system<|end_header_id|>\n{content}<|eot_id|>}
  * {@code <|start_header_id|>user<|end_header_id|>\n{content}<|eot_id|>}

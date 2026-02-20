@@ -44,7 +44,7 @@ public class GEMVHAT implements IGEMV {
      */
     @Override
     public void apply(F32Array matrix, F32Array vector, F32Array result, int rows, int cols) {
-        accelerator.compute(cc ->
+        accelerator.compute((Accelerator.@Reflect Compute) cc ->
             dispatchGEMV(cc, matrix, vector, result, rows, cols)
         );
     }
