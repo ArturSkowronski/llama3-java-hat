@@ -169,7 +169,7 @@ jobs:
         run: |
           git fetch origin gh-pages:gh-pages 2>/dev/null || true
           mkdir -p existing-data
-          git show gh-pages:data/benchmark-history.json > existing-data/benchmark-history.json 2>/dev/null || echo '{"runs":[]}' > existing-data/benchmark-history.json
+          git show gh-pages:benchmark-page/github-actions-pocl/data/benchmark-history.json > existing-data/benchmark-history.json 2>/dev/null || echo '{"runs":[]}' > existing-data/benchmark-history.json
 
       - name: Install jq
         run: sudo apt-get install -y jq
@@ -194,5 +194,6 @@ jobs:
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./deploy
-          keep_files: false
-          commit_message: "Update benchmark results (${{ github.sha }})"
+          destination_dir: benchmark-page/github-actions-pocl
+          keep_files: true
+          commit_message: "Update benchmark results (GitHub Actions PoCL, ${{ github.sha }})"
