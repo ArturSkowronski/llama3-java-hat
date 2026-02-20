@@ -22,9 +22,6 @@ import java.io.IOException;
  */
 public class TransformerBlock {
 
-    private final LlamaModel model;
-    private final int layerIdx;
-
     // Kernels
     private final IRMSNorm rmsNorm;
     private final IGEMV gemv;
@@ -46,22 +43,21 @@ public class TransformerBlock {
     private final F32Array w3;
 
     // Buffers for intermediate results
-    private final F32Array normOut;
     private final F32Array q;
     private final F32Array k;
     private final F32Array v;
     private final F32Array attnOut;
+    private final F32Array qHead;
+    private final F32Array keyHeadCache;
+    private final F32Array valueHeadCache;
+    private final F32Array attnScores;
+    private final F32Array attnHeadOut;
     private final F32Array ffn1Out;
     private final F32Array ffn3Out;
     private final F32Array ffnOut;
     private final F32Array residual;
 
-    // Plain Java array for per-head attention scores (avoids HAT buffer caching bug)
-    private final float[] att;
-
     public TransformerBlock(LlamaModel model, int layerIdx, IKernelFactory factory) throws IOException {
-        this.model = model;
-        this.layerIdx = layerIdx;
         Accelerator acc = model.getAccelerator();
 
         // Initialize Kernels using factory
@@ -86,16 +82,19 @@ public class TransformerBlock {
         this.w3 = model.mapTensor(prefix + "ffn_up.weight");
 
         // Pre-allocate Intermediate Buffers
-        this.normOut = F32Array.create(acc, LlamaModel.HIDDEN_SIZE);
         this.q = F32Array.create(acc, LlamaModel.HIDDEN_SIZE);
         this.k = F32Array.create(acc, LlamaModel.NUM_KV_HEADS * LlamaModel.HEAD_DIM);
         this.v = F32Array.create(acc, LlamaModel.NUM_KV_HEADS * LlamaModel.HEAD_DIM);
         this.attnOut = F32Array.create(acc, LlamaModel.HIDDEN_SIZE);
+        this.qHead = F32Array.create(acc, LlamaModel.HEAD_DIM);
+        this.keyHeadCache = F32Array.create(acc, LlamaModel.MAX_SEQ_LEN * LlamaModel.HEAD_DIM);
+        this.valueHeadCache = F32Array.create(acc, LlamaModel.MAX_SEQ_LEN * LlamaModel.HEAD_DIM);
+        this.attnScores = F32Array.create(acc, LlamaModel.MAX_SEQ_LEN);
+        this.attnHeadOut = F32Array.create(acc, LlamaModel.HEAD_DIM);
         this.ffn1Out = F32Array.create(acc, LlamaModel.INTERMEDIATE_SIZE);
         this.ffn3Out = F32Array.create(acc, LlamaModel.INTERMEDIATE_SIZE);
         this.ffnOut = F32Array.create(acc, LlamaModel.HIDDEN_SIZE);
         this.residual = F32Array.create(acc, LlamaModel.HIDDEN_SIZE);
-        this.att = new float[LlamaModel.MAX_SEQ_LEN];
     }
 
     /**
@@ -129,7 +128,7 @@ public class TransformerBlock {
         rope.apply(q, pos, numHeads, headDim, ropeTheta);
         rope.apply(k, pos, numKvHeads, headDim, ropeTheta);
 
-        // 4. Update KV Cache & Multi-head Attention (plain Java, no HAT dispatch)
+        // 4. Update KV cache and compute multi-head attention via selected kernels.
         int kvDim = numKvHeads * headDim;
         int kvMul = numHeads / numKvHeads;
 
@@ -140,34 +139,33 @@ public class TransformerBlock {
             vCache.array(cacheOffset + i, v.array(i));
         }
 
-        float scale = 1.0f / (float) Math.sqrt(headDim);
-
-        // GQA: for each query head, compute scaled dot-product attention
+        int seqLen = pos + 1;
         for (int h = 0; h < numHeads; h++) {
             int kvHead = h / kvMul;
             int qOffset = h * headDim;
+            int kvHeadOffset = kvHead * headDim;
 
-            // Compute attention scores against all cached keys (0..pos inclusive)
-            for (int t = 0; t <= pos; t++) {
-                float score = 0.0f;
-                int kOffset = t * kvDim + kvHead * headDim;
-                for (int d = 0; d < headDim; d++) {
-                    score += q.array(qOffset + d) * kCache.array(kOffset + d);
-                }
-                att[t] = score * scale;
+            for (int d = 0; d < headDim; d++) {
+                qHead.array(d, q.array(qOffset + d));
             }
 
-            // Softmax over scores
-            softmaxInPlace(att, pos + 1);
+            // Gather one KV head across sequence into contiguous scratch buffers.
+            for (int t = 0; t < seqLen; t++) {
+                int kvCacheOffset = t * kvDim + kvHeadOffset;
+                int headOffset = t * headDim;
+                for (int d = 0; d < headDim; d++) {
+                    keyHeadCache.array(headOffset + d, kCache.array(kvCacheOffset + d));
+                    valueHeadCache.array(headOffset + d, vCache.array(kvCacheOffset + d));
+                }
+            }
 
-            // Weighted sum of cached values → write to attnOut
+            attention.computeScores(qHead, keyHeadCache, attnScores, seqLen, headDim);
+            softmax.apply(attnScores, seqLen);
+            attention.computeValues(attnScores, valueHeadCache, attnHeadOut, seqLen, headDim);
+
             int attnOffset = h * headDim;
             for (int d = 0; d < headDim; d++) {
-                float sum = 0.0f;
-                for (int t = 0; t <= pos; t++) {
-                    sum += att[t] * vCache.array(t * kvDim + kvHead * headDim + d);
-                }
-                attnOut.array(attnOffset + d, sum);
+                attnOut.array(attnOffset + d, attnHeadOut.array(d));
             }
         }
 
@@ -205,22 +203,6 @@ public class TransformerBlock {
     private void add(F32Array a, F32Array b, int size) {
         for (int i = 0; i < size; i++) {
             a.array(i, a.array(i) + b.array(i));
-        }
-    }
-
-    private void softmaxInPlace(float[] values, int size) {
-        float maxVal = Float.NEGATIVE_INFINITY;
-        for (int i = 0; i < size; i++) {
-            if (values[i] > maxVal) maxVal = values[i];
-        }
-        float sum = 0.0f;
-        for (int i = 0; i < size; i++) {
-            values[i] = (float) Math.exp(values[i] - maxVal);
-            sum += values[i];
-        }
-        float invSum = 1.0f / sum;
-        for (int i = 0; i < size; i++) {
-            values[i] *= invSum;
         }
     }
 

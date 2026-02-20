@@ -1,16 +1,7 @@
 package com.arturskowronski.llama3babylon.hat.kernels;
 
-import jdk.incubator.code.Reflect;
 import hat.Accelerator;
-import hat.ComputeContext;
-import hat.KernelContext;
-import hat.NDRange;
 import hat.buffer.F32Array;
-
-import java.lang.invoke.MethodHandles;
-
-import static optkl.ifacemapper.MappableIface.RO;
-import static optkl.ifacemapper.MappableIface.RW;
 
 /**
  * Softmax kernel for Llama 3.2 1B Instruct (FP16).
@@ -24,10 +15,8 @@ import static optkl.ifacemapper.MappableIface.RW;
  */
 public class Softmax implements ISoftmax {
 
-    private final Accelerator accelerator;
-
     public Softmax(Accelerator accelerator) {
-        this.accelerator = accelerator;
+        // Kept for factory symmetry with HAT implementation.
     }
 
     /**
@@ -55,21 +44,10 @@ public class Softmax implements ISoftmax {
         }
 
         // Step 3: Normalize by sum
-        final float invSum = 1.0f / sum;
-        accelerator.compute((Accelerator.@Reflect Compute) cc -> 
-            computeNormalize(cc, input, invSum, size)
-        );
-    }
-
-    @Reflect
-    public static void normalizeKernel(@RO KernelContext kc, @RW F32Array input, @RO float invSum) {
-        int i = kc.gix;
-        input.array(i, input.array(i) * invSum);
-    }
-
-    @Reflect
-    public static void computeNormalize(@RO ComputeContext cc, @RW F32Array input, @RO float invSum, @RO int size) {
-        cc.dispatchKernel(NDRange.of1D(size), kc -> normalizeKernel(kc, input, invSum));
+        float invSum = 1.0f / sum;
+        for (int i = 0; i < size; i++) {
+            input.array(i, input.array(i) * invSum);
+        }
     }
 
     /**
