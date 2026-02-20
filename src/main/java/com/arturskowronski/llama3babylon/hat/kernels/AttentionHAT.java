@@ -12,19 +12,19 @@ import static optkl.ifacemapper.MappableIface.WO;
 
 /**
  * Attention kernel using HAT @Reflect dispatch.
- *
+ * <p>
  * Fifth kernel to be tested with HAT dispatch in real 16-layer inference.
  * Unlike previous kernels, Attention already used HAT dispatch in the base
  * implementation, so this version validates that the existing HAT usage works
  * correctly in the full inference pipeline.
- *
+ * <p>
  * Implements Scaled Dot-Product Attention:
  * Attention(Q, K, V) = softmax( (Q * K^T) / sqrt(d_k) ) * V
- *
+ * <p>
  * Two-step computation (both using HAT dispatch):
  * 1. Compute scores: Q * K^T / sqrt(d_k) → parallelized over sequence length
  * 2. Compute values: Scores * V → parallelized over head dimension
- *
+ * <p>
  * Note: Softmax is applied between steps 1 and 2 (uses SoftmaxHAT).
  */
 public class AttentionHAT implements IAttention {
@@ -37,7 +37,7 @@ public class AttentionHAT implements IAttention {
 
     /**
      * Computes raw attention scores (Q * K^T) / sqrt(d_k) using HAT dispatch.
-     *
+     * <p>
      * Parallelized over sequence length: each work item computes dot product
      * of query with one key vector.
      *

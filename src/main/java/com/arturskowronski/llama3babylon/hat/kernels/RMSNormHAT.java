@@ -68,7 +68,6 @@ public class RMSNormHAT implements IRMSNorm {
 
     @Reflect
     public static void normalizeKernel(@RO KernelContext kc, @RW F32Array input, @RO F32Array weight, @RO float invRms) {
-        int i = kc.gix;
-        input.array(i, input.array(i) * invRms * weight.array(i));
+        RMSNorm.normalizeKernel(kc, input, weight, invRms);
     }
 }

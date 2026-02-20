@@ -54,20 +54,6 @@ public class RoPEHAT implements IRoPE {
 
     @Reflect
     public static void ropeKernel(@RO KernelContext kc, @RW F32Array vec, @RO int pos, @RO int headDim, @RO float theta) {
-        int h = kc.gix; // head index
-        int headOffset = h * headDim;
-
-        for (int i = 0; i < headDim; i += 2) {
-            float freq = (float) (1.0 / Math.pow(theta, (double) i / headDim));
-            float val = pos * freq;
-            float cosVal = (float) Math.cos(val);
-            float sinVal = (float) Math.sin(val);
-
-            float v0 = vec.array(headOffset + i);
-            float v1 = vec.array(headOffset + i + 1);
-
-            vec.array(headOffset + i, v0 * cosVal - v1 * sinVal);
-            vec.array(headOffset + i + 1, v0 * sinVal + v1 * cosVal);
-        }
+        RoPE.ropeKernel(kc, vec, pos, headDim, theta);
     }
 }

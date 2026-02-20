@@ -46,8 +46,6 @@ public class SiLUHAT implements ISiLU {
 
     @Reflect
     public static void siluKernel(@RO KernelContext kc, @RW F32Array input) {
-        int i = kc.gix;
-        float x = input.array(i);
-        input.array(i, x / (1.0f + (float) Math.exp(-x)));
+        SiLU.siluKernel(kc, input);
     }
 }

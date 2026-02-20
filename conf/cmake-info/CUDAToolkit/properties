@@ -1,0 +1,6 @@
+#A comment
+#Wed Feb 18 07:18:25 CET 2026
+CMAKE_C_IMPLICIT_LINK_FRAMEWORK_DIRECTORIES=/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk/System/Library/Frameworks
+CMAKE_HOST_SYSTEM_NAME=Darwin
+CMAKE_HOST_SYSTEM_PROCESSOR=arm64
+CUDAToolkit_NVCC_EXECUTABLE=CUDAToolkit_NVCC_EXECUTABLE-NOTFOUND

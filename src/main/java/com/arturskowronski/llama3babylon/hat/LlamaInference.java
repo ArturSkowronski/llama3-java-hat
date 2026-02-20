@@ -22,29 +22,20 @@ public class LlamaInference {
     private final F32Array[] kCaches;
     private final F32Array[] vCaches;
 
-    // Global weights
     private final F32Array tokenEmbedding;
     private final F32Array outputNormWeight;
     private final F32Array outputWeight;
 
-    // Kernels
     private final IRMSNorm rmsNorm;
     private final IGEMV gemv;
 
-    // Working buffers
     private final F32Array x;
     private final F32Array logits;
 
-    /**
-     * Creates a LlamaInference instance with a plain Java kernel factory (backward compatible).
-     */
     public LlamaInference(Path ggufPath) throws IOException {
         this(ggufPath, new PlainJavaKernelFactory());
     }
 
-    /**
-     * Creates a LlamaInference instance with a custom kernel factory on the default backend.
-     */
     public LlamaInference(Path ggufPath, IKernelFactory factory) throws IOException {
         this(ggufPath, factory, BackendType.JAVA_SEQ);
     }
@@ -214,9 +205,6 @@ public class LlamaInference {
         }
         return tokenizer.decode(tokenList);
     }
-
-    public Tokenizer getTokenizer() { return tokenizer; }
-    public ChatFormat getChatFormat() { return chatFormat; }
 
     /**
      * Returns the index of the maximum value in the array.

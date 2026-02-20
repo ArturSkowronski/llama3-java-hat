@@ -1,0 +1,10 @@
+#A comment
+#Wed Feb 18 07:18:22 CET 2026
+CMAKE_C_IMPLICIT_LINK_FRAMEWORK_DIRECTORIES=/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk/System/Library/Frameworks
+CMAKE_HOST_SYSTEM_NAME=Darwin
+CMAKE_HOST_SYSTEM_PROCESSOR=arm64
+OPENCL_FOUND=TRUE
+OpenCL_FOUND=TRUE
+OpenCL_INCLUDE_DIRS=/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk/System/Library/Frameworks/OpenCL.framework
+OpenCL_LIBRARY=/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk/System/Library/Frameworks/OpenCL.framework
+OpenCL_VERSION_STRING=1.2

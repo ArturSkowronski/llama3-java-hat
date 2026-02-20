@@ -5,10 +5,10 @@ import hat.buffer.F32Array;
 
 /**
  * Attention kernel for Llama 3.2 1B Instruct (FP16).
- *
+ * <p>
  * Specifically implements Scaled Dot-Product Attention for one query head:
  * Attention(Q, K, V) = softmax( (Q * K^T) / sqrt(d_k) ) * V
- *
+ * <p>
  * Constraints:
  * - Designed for Llama 3.2 1B (HIDDEN_SIZE=2048, NUM_HEADS=32, HEAD_DIM=64)
  * - Single-head query, multiple KV heads (GQA support)

@@ -12,15 +12,14 @@ import static optkl.ifacemapper.MappableIface.WO;
 
 /**
  * GEMV (Matrix-Vector Multiplication) kernel using HAT @Reflect dispatch.
- *
+ * <p>
  * FINAL BOSS: Sixth and last kernel to be tested with HAT dispatch.
  * GEMV is the most computationally intensive kernel in the Llama inference pipeline.
- *
+ * <p>
  * Computes: y = Ax
  * where A is a matrix [rows, cols] and x is a vector [cols].
- *
  * Parallelization: Each row computed independently (NDRange.of1D(rows))
- *
+ * <p>
  * Usage: ~113 GEMV operations per token:
  * - 4 per layer for Q/K/V/O projections (64 total for 16 layers)
  * - 3 per layer for FFN gate/up/down (48 total for 16 layers)
@@ -45,7 +44,7 @@ public class GEMVHAT implements IGEMV {
      */
     @Override
     public void apply(F32Array matrix, F32Array vector, F32Array result, int rows, int cols) {
-        accelerator.compute((Accelerator.@Reflect Compute) cc ->
+        accelerator.compute(cc ->
             dispatchGEMV(cc, matrix, vector, result, rows, cols)
         );
     }
@@ -57,12 +56,6 @@ public class GEMVHAT implements IGEMV {
 
     @Reflect
     public static void gemvKernel(@RO KernelContext kc, @RO F32Array matrix, @RO F32Array vector, @WO F32Array result, @RO int cols) {
-        int row = kc.gix;
-        float sum = 0.0f;
-        int rowOffset = row * cols;
-        for (int c = 0; c < cols; c++) {
-            sum += matrix.array(rowOffset + c) * vector.array(c);
-        }
-        result.array(row, sum);
+        GEMV.gemvKernel(kc, matrix, vector, result, cols);
     }
 }

@@ -1,0 +1,7 @@
+cmake_minimum_required(VERSION 3.22.1)
+project(extractions)
+find_package(OpenCL)
+get_cmake_property(_variableNames VARIABLES)
+foreach (_variableName ${_variableNames})
+   message(STATUS "${_variableName}=${${_variableName}}")
+endforeach()
