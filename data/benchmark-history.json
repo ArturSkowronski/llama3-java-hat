@@ -606,6 +606,33 @@
           "error": "SKIPPED: No runtime available"
         }
       }
+    },
+    {
+      "date": "2026-02-20T06:49:34Z",
+      "commit": "5761f38ea8141d501d0c8ed2b40ecd52ec456988",
+      "source": "gcp-t4",
+      "results": {
+        "Plain Java": {
+          "load_sec": 16.070516335,
+          "infer_sec": 417.988889016,
+          "tok_per_sec": 0.019139264727426216
+        },
+        "HAT Java Sequential": {
+          "load_sec": 15.917879512,
+          "infer_sec": 421.760342761,
+          "tok_per_sec": 0.018968118120421245
+        },
+        "HAT Java MT": {
+          "load_sec": 15.931482952,
+          "infer_sec": 152.95024308,
+          "tok_per_sec": 0.05230459160379126
+        },
+        "HAT OpenCL GPU": {
+          "load_sec": 16.168088254,
+          "infer_sec": 18.039178691,
+          "tok_per_sec": 0.44347917036773477
+        }
+      }
     }
   ]
 }
