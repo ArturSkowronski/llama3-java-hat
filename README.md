@@ -53,6 +53,17 @@ This project tracks upstream Babylon closely, so CI is split by purpose and cade
 | [![Nightly](https://github.com/ArturSkowronski/llama3-java-hat/actions/workflows/nightly.yml/badge.svg)](https://github.com/ArturSkowronski/llama3-java-hat/actions/workflows/nightly.yml) | Daily full integration + daily benchmarks | Daily 2 AM UTC |
 | [![Weekly](https://github.com/ArturSkowronski/llama3-java-hat/actions/workflows/weekly-full-matrix.yml/badge.svg)](https://github.com/ArturSkowronski/llama3-java-hat/actions/workflows/weekly-full-matrix.yml) | Weekly baseline + benchmarks + regression + backend integration | Sunday 3 AM UTC |
 
+### Benchmark page (GitHub Pages)
+
+- Live page: https://arturskowronski.github.io/llama3-java-hat/benchmark-page/
+- Latest validated GCP T4 run (inference-only): https://github.com/ArturSkowronski/llama3-java-hat/actions/runs/22215044011
+
+### GCP machine sizing finding
+
+On February 20, 2026, we compared `n1-standard-4 + T4` vs a higher-tier `n1-standard-16 + T4` for `benchmarkInference`.
+Result: the larger CPU/RAM machine did not provide enough benefit to justify the extra cost for this workload.
+Current recommendation/default remains `n1-standard-4`.
+
 ### Tag and task model
 
 - `plain-integration`: plain Java integration tests
