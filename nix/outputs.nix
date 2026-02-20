@@ -26,6 +26,29 @@ flake-utils.lib.eachDefaultSystem (
       inherit pkgs gradle2nixBuilders babylon-jdk hat-artifacts;
     };
 
+    # ── Runner wrapper ─────────────────────────────────────────────
+    llama3-runner = pkgs.writeShellApplication {
+      name = "llama3-java-hat";
+      runtimeInputs = [ babylon-jdk ];
+      text = ''
+        if [ $# -eq 0 ]; then
+          echo "Usage: llama3-java-hat <path-to-model.gguf>" >&2
+          echo "  e.g. llama3-java-hat ./Llama-3.2-1B-Instruct-f16.gguf" >&2
+          exit 1
+        fi
+
+        exec ${babylon-jdk}/lib/openjdk/bin/java \
+          --enable-preview \
+          --add-modules=jdk.incubator.code \
+          --add-exports=java.base/jdk.internal.vm.annotation=ALL-UNNAMED \
+          --enable-native-access=ALL-UNNAMED \
+          -Djava.library.path=${hat-artifacts}/hat/build \
+          -cp "${llama3-java-hat}/lib/llama3-java-hat.jar:${hat-artifacts}/hat/build/*" \
+          com.arturskowronski.llama3babylon.hat.GGUFReader \
+          "$@"
+      '';
+    };
+
     # ── Formatting ───────────────────────────────────────────────────
     treeFmt = treefmt-nix.lib.evalModule pkgs ./treefmt.nix;
 
@@ -49,7 +72,12 @@ flake-utils.lib.eachDefaultSystem (
   {
     packages = {
       default = llama3-java-hat;
-      inherit babylon-jdk hat-artifacts llama3-java-hat;
+      inherit babylon-jdk hat-artifacts llama3-java-hat llama3-runner;
+    };
+
+    apps.default = {
+      type = "app";
+      program = "${llama3-runner}/bin/llama3-java-hat";
     };
 
     checks = {
