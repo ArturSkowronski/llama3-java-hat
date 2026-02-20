@@ -2,6 +2,8 @@
 , nixpkgs
 , flake-utils
 , gradle2nix
+, treefmt-nix
+, git-hooks
 , ...
 }@inputs:
 flake-utils.lib.eachDefaultSystem (
@@ -23,6 +25,26 @@ flake-utils.lib.eachDefaultSystem (
     llama3-java-hat = import ./packages/llama3-java-hat {
       inherit pkgs gradle2nixBuilders babylon-jdk hat-artifacts;
     };
+
+    # ── Formatting ───────────────────────────────────────────────────
+    treeFmt = treefmt-nix.lib.evalModule pkgs ./treefmt.nix;
+
+    # ── Pre-commit hooks ─────────────────────────────────────────────
+    preCommitCheck = import ./git-hooks.nix {
+      inherit git-hooks system babylon-jdk;
+      treeFmtWrapper = treeFmt.config.build.wrapper;
+    };
+
+    # ── Common dev tools ─────────────────────────────────────────────
+    commonDevTools = with pkgs; [
+      git
+      jq
+      ripgrep
+      fd
+      bat
+      direnv
+      nixd
+    ];
   in
   {
     packages = {
@@ -30,11 +52,17 @@ flake-utils.lib.eachDefaultSystem (
       inherit babylon-jdk hat-artifacts llama3-java-hat;
     };
 
+    checks = {
+      formatting = treeFmt.config.build.check self;
+    };
+
+    formatter = treeFmt.config.build.wrapper;
+
     devShells.default = pkgs.mkShell {
-      packages = with pkgs; [
-        cmake
-        git
-      ];
+      packages = [
+        pkgs.cmake
+        treeFmt.config.build.wrapper
+      ] ++ commonDevTools;
 
       JAVA_HOME = "${babylon-jdk}/lib/openjdk";
       JAVA_BABYLON_ROOT = "${hat-artifacts}";
@@ -46,7 +74,7 @@ flake-utils.lib.eachDefaultSystem (
 
         # Add Babylon JDK to PATH so `java` resolves correctly
         export PATH="${babylon-jdk}/lib/openjdk/bin:$PATH"
-      '';
+      '' + preCommitCheck.shellHook;
     };
   }
 )
