@@ -87,10 +87,7 @@ flake-utils.lib.eachDefaultSystem (
 
     checks = {
       formatting = treeFmt.config.build.check self;
-      inherit (testChecks) unit-tests;
-      # Integration checks are impure — run with:
-      #   LLAMA_FP16_PATH=./model.gguf nix build .#checks.x86_64-linux.plain-integration-tests --impure
-      inherit (testChecks) plain-integration-tests hat-integration-tests;
+      inherit (testChecks) unit-tests plain-integration-tests hat-integration-tests;
     };
 
     formatter = treeFmt.config.build.wrapper;

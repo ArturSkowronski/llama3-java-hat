@@ -1,12 +1,11 @@
 # Nix checks that run the project's Gradle test tasks.
 #
-# - unit-tests: runs `./gradlew test` (no model needed, pure sandbox)
-# - plain-integration-tests: runs `./gradlew plainIntegrationTest` (needs model)
-# - hat-integration-tests: runs `./gradlew hatIntegrationTest` (needs model)
+# - unit-tests: runs `./gradlew test` (no model needed)
+# - plain-integration-tests: runs `./gradlew plainIntegrationTest`
+# - hat-integration-tests: runs `./gradlew hatIntegrationTest`
 #
-# Integration checks are impure — they require LLAMA_FP16_PATH to point at a
-# local model file. Pass it via --impure + env var:
-#   LLAMA_FP16_PATH=./model.gguf nix build .#checks.x86_64-linux.plain-integration-tests --impure
+# The Llama model is fetched as a fixed-output derivation so all checks
+# run in a pure sandbox — no --impure flag needed.
 { pkgs
 , gradle2nixBuilders
 , babylon-jdk
@@ -17,6 +16,13 @@
 let
   lockRepo = gradle2nixBuilders.buildMavenRepo {
     lockFile = ../../gradle.lock;
+  };
+
+  # Llama 3.2 1B Instruct FP16 GGUF (~2.5 GB)
+  llamaModel = pkgs.fetchurl {
+    url = "https://huggingface.co/bartowski/Llama-3.2-1B-Instruct-GGUF/resolve/main/Llama-3.2-1B-Instruct-f16.gguf";
+    hash = "sha256-HzOtQ9K4W5CP8G/nACtpgGpXNZubJhfKJ9e96kKK4UY=";
+    name = "Llama-3.2-1B-Instruct-f16.gguf";
   };
 
   gradleDist = pkgs.fetchurl {
@@ -140,25 +146,17 @@ in
     gradleTask = "test";
   };
 
-  # Plain integration tests (no HAT) — impure, needs LLAMA_FP16_PATH
+  # Plain integration tests (no HAT) — pure, model fetched by Nix
   plain-integration-tests = mkGradleCheck {
     pname = "llama3-java-hat-plain-integration-tests";
     gradleTask = "plainIntegrationTest";
-    impure = true;
-    extraEnv = {
-      LLAMA_FP16_PATH = builtins.getEnv "LLAMA_FP16_PATH";
-      __impure = true;
-    };
+    extraEnv = { LLAMA_FP16_PATH = "${llamaModel}"; };
   };
 
-  # HAT integration tests — impure, needs LLAMA_FP16_PATH
+  # HAT integration tests — pure, model fetched by Nix
   hat-integration-tests = mkGradleCheck {
     pname = "llama3-java-hat-hat-integration-tests";
     gradleTask = "hatIntegrationTest";
-    impure = true;
-    extraEnv = {
-      LLAMA_FP16_PATH = builtins.getEnv "LLAMA_FP16_PATH";
-      __impure = true;
-    };
+    extraEnv = { LLAMA_FP16_PATH = "${llamaModel}"; };
   };
 }
