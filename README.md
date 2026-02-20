@@ -53,9 +53,10 @@ This project tracks upstream Babylon closely, so CI is split by purpose and cade
 | [![Nightly](https://github.com/ArturSkowronski/llama3-java-hat/actions/workflows/nightly.yml/badge.svg)](https://github.com/ArturSkowronski/llama3-java-hat/actions/workflows/nightly.yml) | Daily full integration + daily benchmarks | Daily 2 AM UTC |
 | [![Weekly](https://github.com/ArturSkowronski/llama3-java-hat/actions/workflows/weekly-full-matrix.yml/badge.svg)](https://github.com/ArturSkowronski/llama3-java-hat/actions/workflows/weekly-full-matrix.yml) | Weekly baseline + benchmarks + regression + backend integration | Sunday 3 AM UTC |
 
-### Benchmark page (GitHub Pages)
+### Benchmark pages (GitHub Pages)
 
-- Live page: https://arturskowronski.github.io/llama3-java-hat/benchmark-page/
+- GitHub Actions (PoCL): https://arturskowronski.github.io/llama3-java-hat/benchmark-page/github-actions-pocl/
+- GCP T4: https://arturskowronski.github.io/llama3-java-hat/benchmark-page/gcp-t4/
 - Latest validated GCP T4 run (inference-only): https://github.com/ArturSkowronski/llama3-java-hat/actions/runs/22215044011
 
 ### GCP machine sizing finding
