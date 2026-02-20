@@ -47,7 +47,8 @@ fun Test.configureBaseTestTask(descriptionText: String) {
 }
 
 fun Test.configureLongRunningJvm() {
-    jvmArgs("-Xmx5g")
+    val longRunningTestXmx = System.getenv("LONG_RUNNING_TEST_XMX")?.takeIf { it.isNotBlank() } ?: "5g"
+    jvmArgs("-Xmx$longRunningTestXmx")
     maxParallelForks = 1 // Avoid running multiple inference backends at once (GPU/FFI/large heap).
     forkEvery = 1 // Fork a new JVM per test class to prevent OOM from repeated model loads.
     failFast = false

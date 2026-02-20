@@ -204,6 +204,33 @@ WORKDIR="$7"
 WORKDIR="${WORKDIR/#\~/$HOME}"
 mkdir -p "$WORKDIR"
 
+CPU_COUNT="$(nproc)"
+TOTAL_RAM_KB="$(awk '/MemTotal/ {print $2}' /proc/meminfo)"
+TOTAL_RAM_GB="$(( TOTAL_RAM_KB / 1024 / 1024 ))"
+
+# Keep room for OS/NVIDIA/OpenCL + Gradle daemon; allocate the rest to benchmark test JVM.
+LONG_RUNNING_TEST_XMX_GB="$(( TOTAL_RAM_GB - 8 ))"
+if (( LONG_RUNNING_TEST_XMX_GB < 5 )); then
+  LONG_RUNNING_TEST_XMX_GB=5
+fi
+if (( LONG_RUNNING_TEST_XMX_GB > 48 )); then
+  LONG_RUNNING_TEST_XMX_GB=48
+fi
+
+GRADLE_DAEMON_XMX_GB="$(( TOTAL_RAM_GB / 8 ))"
+if (( GRADLE_DAEMON_XMX_GB < 2 )); then
+  GRADLE_DAEMON_XMX_GB=2
+fi
+if (( GRADLE_DAEMON_XMX_GB > 8 )); then
+  GRADLE_DAEMON_XMX_GB=8
+fi
+
+export LONG_RUNNING_TEST_XMX="${LONG_RUNNING_TEST_XMX_GB}g"
+export GRADLE_OPTS="${GRADLE_OPTS:-} -Dorg.gradle.jvmargs=-Xmx${GRADLE_DAEMON_XMX_GB}g -Dorg.gradle.workers.max=${CPU_COUNT}"
+
+echo "VM resources: cpu=${CPU_COUNT}, ram=${TOTAL_RAM_GB}g"
+echo "JVM tuning: LONG_RUNNING_TEST_XMX=${LONG_RUNNING_TEST_XMX}, org.gradle.jvmargs=-Xmx${GRADLE_DAEMON_XMX_GB}g, org.gradle.workers.max=${CPU_COUNT}"
+
 sudo apt-get update
 sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
   git curl build-essential autoconf cmake pkg-config ninja-build unzip zip \
