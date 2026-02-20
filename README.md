@@ -59,6 +59,12 @@ This project tracks upstream Babylon closely, so CI is split by purpose and cade
 - GCP T4: https://arturskowronski.github.io/llama3-java-hat/benchmark-page/gcp-t4/
 - Latest validated GCP T4 run (inference-only): https://github.com/ArturSkowronski/llama3-java-hat/actions/runs/22215044011
 
+These benchmarks are for fun only. Results are collected on GitHub Actions runners with variable performance characteristics, so do not use these numbers for serious performance comparisons.
+
+The OpenCL backend on GitHub Actions runs on PoCL (CPU-based OpenCL), not a real GPU, so expect significantly lower throughput than actual GPU hardware.
+
+Google Cloud tests are run on `n1-standard-4 + T4 (NVIDIA)`, still using OpenCL. In the future, I'd love to test SPIR-V.
+
 ### GCP machine sizing finding
 
 On February 20, 2026, we compared `n1-standard-4 + T4` vs a higher-tier `n1-standard-16 + T4` for `benchmarkInference`.
