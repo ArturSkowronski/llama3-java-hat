@@ -62,6 +62,11 @@ final class InferenceBenchmarkSupport {
                 modelPath, new PlainJavaKernelFactory(), backendType, mode));
     }
 
+    static BenchmarkResult runWeightModeHAT(Path modelPath, WeightStorageMode mode, BackendType backendType, String label) {
+        return runBenchmark(label, () -> new LlamaInference(
+                modelPath, new HybridKernelFactory(Set.of(HybridKernelFactory.KernelType.GEMV)), backendType, mode));
+    }
+
     static BenchmarkResult runPlainJavaCached(Path modelPath) {
         String key = modelPath.toAbsolutePath() + "|tokens=" + MAX_TOKENS + "|prompt=" + USER_PROMPT;
         return PLAIN_BASELINE_CACHE.computeIfAbsent(key, ignored -> runPlainJava(modelPath));
