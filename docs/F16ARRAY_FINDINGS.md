@@ -50,7 +50,7 @@ This means:
 ### New State: Native F16Array
 
 With `F16Array`, weight data stays in half-precision:
-- **2x memory reduction** for weight buffers (~1.2 GB saved for Llama 3.2 1B)
+- **2x memory reduction** for weight buffers (~1.8 GB saved for Llama 3.2 1B)
 - **Dequantization at compute time**: GEMV kernel reads F16 and converts to float during the dot product
 - **GPU-ready**: F16Array can be transferred to GPU memory in native format — the GPU reads half-precision directly
 
@@ -96,9 +96,9 @@ Everything else (projection matrices, FFN weights, embedding table) is F16 and g
 | Buffer | Elements | Before (F32) | After (F16) | Saved |
 |--------|----------|--------------|-------------|-------|
 | token_embd.weight | 128,256 x 2,048 | 1.0 GB | 0.5 GB | 0.5 GB |
-| Per-layer weights (x16) | ~42M per layer | 2.6 GB total | 1.3 GB total | 1.3 GB |
+| Per-layer weights (x16) | ~60.9M per layer | 3.7 GB total | 1.86 GB total | 1.86 GB |
 | output_norm.weight | 2,048 | 8 KB (F32) | 8 KB (F32) | 0 |
-| **Total weight buffers** | | **~3.6 GB** | **~1.8 GB** | **~1.8 GB** |
+| **Total weight buffers** | | **~4.7 GB** | **~2.36 GB** | **~2.36 GB** |
 
 Note: Intermediate computation buffers (q, k, v, attn scores, etc.) remain F32Array — they hold computed values, not loaded weights.
 
