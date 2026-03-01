@@ -202,6 +202,12 @@ registerBenchmarkTestByPattern(
     "com.arturskowronski.llama3babylon.hat.benchmark.HatOpenclInferenceBenchmarkTest.benchmarkHatOpencl"
 )
 
+registerBenchmarkTestByPattern(
+    "benchmarkF16F32",
+    "Runs F16 vs F32 weight storage comparison benchmark.",
+    "com.arturskowronski.llama3babylon.hat.benchmark.F16F32WeightStorageBenchmarkTest.benchmarkF16vsF32WeightStorage"
+)
+
 tasks.register("benchmarkInference") {
     description = "Runs all 4 inference benchmarks (Plain Java + HAT backends)."
     group = "verification"
