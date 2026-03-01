@@ -52,13 +52,13 @@ public class GEMVHAT implements IGEMV {
         cc.dispatchKernel(NDRange.of1D(rows), kc -> gemvKernel(kc, matrix, vector, result, cols));
     }
 
-    // Kernel body inlined (not delegated cross-class) to avoid OpenCL
-    // "redefinition" error when codegen emits same name as HAT_FUNC + HAT_KERNEL.
     @Reflect
     public static void dispatchGEMVF16(@RO ComputeContext cc, @RO F16Array matrix, @RO F32Array vector, @WO F32Array result, @RO int rows, @RO int cols) {
         cc.dispatchKernel(NDRange.of1D(rows), kc -> gemvKernelF16(kc, matrix, vector, result, cols));
     }
 
+    // Kernel body inlined (not delegated cross-class) to avoid OpenCL
+    // "redefinition" error when codegen emits same name as HAT_FUNC + HAT_KERNEL.
     @Reflect
     public static void gemvKernel(@RO KernelContext kc, @RO F32Array matrix, @RO F32Array vector, @WO F32Array result, @RO int cols) {
         int row = kc.gix;
@@ -70,8 +70,18 @@ public class GEMVHAT implements IGEMV {
         result.array(row, sum);
     }
 
+    // Workaround for Babylon OpenCL codegen: F16.f16ToFloat() on array element generates
+    // broken `(float)&matrix->array[i]->value`. Extracting to local variable first makes
+    // codegen use the correct `.value` path (isLocal() == true).
     @Reflect
     public static void gemvKernelF16(@RO KernelContext kc, @RO F16Array matrix, @RO F32Array vector, @WO F32Array result, @RO int cols) {
-        GEMV.gemvKernelF16(kc, matrix, vector, result, cols);
+        int row = kc.gix;
+        float sum = 0.0f;
+        int rowOffset = row * cols;
+        for (int c = 0; c < cols; c++) {
+            F16 weight = matrix.array(rowOffset + c);
+            sum += F16.f16ToFloat(weight) * vector.array(c);
+        }
+        result.array(row, sum);
     }
 }
