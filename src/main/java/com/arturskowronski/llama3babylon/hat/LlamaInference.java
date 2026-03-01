@@ -1,7 +1,9 @@
 package com.arturskowronski.llama3babylon.hat;
 
 import hat.Accelerator;
+import hat.buffer.F16Array;
 import hat.buffer.F32Array;
+import hat.types.F16;
 import com.arturskowronski.llama3babylon.hat.kernels.*;
 
 import java.io.IOException;
@@ -22,9 +24,9 @@ public class LlamaInference {
     private final F32Array[] kCaches;
     private final F32Array[] vCaches;
 
-    private final F32Array tokenEmbedding;
+    private final F16Array tokenEmbedding;
     private final F32Array outputNormWeight;
-    private final F32Array outputWeight;
+    private final F16Array outputWeight;
 
     private final IRMSNorm rmsNorm;
     private final IGEMV gemv;
@@ -53,10 +55,10 @@ public class LlamaInference {
 
         // Load global weights
         // Llama 3.2 1B uses tied embeddings: output classifier shares token_embd.weight
-        this.tokenEmbedding = model.mapTensor("token_embd.weight");
+        this.tokenEmbedding = model.mapTensorF16("token_embd.weight");
         this.outputNormWeight = model.mapTensor("output_norm.weight");
         this.outputWeight = model.hasTensor("output.weight")
-                ? model.mapTensor("output.weight")
+                ? model.mapTensorF16("output.weight")
                 : tokenEmbedding;
 
         // Initialize kernels using factory
@@ -98,10 +100,10 @@ public class LlamaInference {
         int hiddenSize = LlamaModel.HIDDEN_SIZE;
         int vocabSize = LlamaModel.VOCAB_SIZE;
 
-        // 1. Embedding lookup: copy row from embedding table
+        // 1. Embedding lookup: copy row from F16 embedding table, converting to F32
         int offset = token * hiddenSize;
         for (int i = 0; i < hiddenSize; i++) {
-            x.array(i, tokenEmbedding.array(offset + i));
+            x.array(i, F16.f16ToFloat(tokenEmbedding.array(offset + i)));
         }
 
         // 2. Transformer layers
