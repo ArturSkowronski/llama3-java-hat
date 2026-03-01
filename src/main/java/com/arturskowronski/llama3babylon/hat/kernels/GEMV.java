@@ -22,6 +22,7 @@ import static optkl.ifacemapper.MappableIface.WO;
 public class GEMV implements IGEMV {
 
     private final Accelerator accelerator;
+    private float[] rowBuf;
 
     public GEMV(Accelerator accelerator) {
         this.accelerator = accelerator;
@@ -41,11 +42,19 @@ public class GEMV implements IGEMV {
 
     @Override
     public void apply(F16Array matrix, F32Array vector, F32Array result, int rows, int cols) {
+        if (rowBuf == null || rowBuf.length < cols) {
+            rowBuf = new float[cols];
+        }
         for (int row = 0; row < rows; row++) {
-            float sum = 0.0f;
             int rowOffset = row * cols;
+            // Pass 1: dequantize row into contiguous float[] (separates interface dispatch from FMA)
             for (int c = 0; c < cols; c++) {
-                sum += F16.f16ToFloat(matrix.array(rowOffset + c)) * vector.array(c);
+                rowBuf[c] = F16.f16ToFloat(matrix.array(rowOffset + c));
+            }
+            // Pass 2: dot product on plain floats (JIT-vectorizable)
+            float sum = 0.0f;
+            for (int c = 0; c < cols; c++) {
+                sum += rowBuf[c] * vector.array(c);
             }
             result.array(row, sum);
         }
