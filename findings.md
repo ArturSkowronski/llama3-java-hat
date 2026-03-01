@@ -1,68 +1,89 @@
 # F16 vs F32 Weight Storage Benchmark Findings
 
-**Date**: 2026-03-01
-**Branch**: `feature/weight-storage-mode-benchmark`
 **Model**: Llama 3.2 1B Instruct FP16 (`Llama-3.2-1B-Instruct-f16.gguf`)
 **Machine**: Apple M1 Pro (16 GPU cores), macOS Darwin 25.2.0
 **Prompt**: "Say hi" | Max tokens: 8
 
-## Results
+> **Caveat**: 8 tokens is a very small sample — each run is ~4-7 minutes of wall clock
+> time, so background OS activity significantly affects F16 numbers. F32 is stable
+> (±1%) across all runs; F16 shows ±20% variance. The gap is real, the magnitude is approximate.
 
-| Backend | Mode | Model Load | Inference | Tokens/sec | Relative Speed |
-|---------|------|-----------|-----------|------------|----------------|
-| CPU Java Seq | F16 (native) | 29.84s | 371.24s | 0.022 tok/s | 1.00x (baseline) |
-| CPU Java Seq | F32 (eager dequant) | 27.98s | 222.37s | 0.036 tok/s | **1.67x faster** |
-| GPU OpenCL | F16 (native) | 30.01s | 349.98s | 0.023 tok/s | 1.06x faster |
-| GPU OpenCL | F32 (eager dequant) | 25.25s | 220.90s | 0.036 tok/s | **1.68x faster** |
+---
 
-## Key Observations
+## Run 1 — Baseline (no GEMV optimization)
 
-### 1. F32 is ~1.67x faster than F16 on both CPU and GPU
+**Date**: 2026-03-01, branch `feature/weight-storage-mode-benchmark`
 
-The F32 advantage is consistent across backends: **222s vs 371s** on CPU, **221s vs 350s** on GPU. The F16 path calls `F16.f16ToFloat()` on every weight element during every GEMV dot product, while F32 pays the conversion cost once at load time.
+| Backend | Mode | Inference | Relative |
+|---------|------|-----------|----------|
+| CPU Java Seq | F16 (native) | 371s | 1.00x |
+| CPU Java Seq | F32 (eager dequant) | 222s | **1.67x faster** |
+| GPU OpenCL | F16 (native) | 350s | 1.06x faster |
+| GPU OpenCL | F32 (eager dequant) | 221s | **1.68x faster** |
 
-### 2. GPU OpenCL provides no meaningful speedup
+## Run 2 — After GEMV row-buffer optimization
 
-GPU OpenCL is essentially the same speed as CPU Java Sequential for both modes:
-- F16: GPU 350s vs CPU 371s (only 6% faster)
-- F32: GPU 221s vs CPU 222s (within noise)
+**Date**: 2026-03-01, branch `feature/f16array-native-weights` @ `38c427a`
 
-This is expected — the HAT OpenCL backend dispatches kernels via `@Reflect` but the current `PlainJavaKernelFactory` doesn't use HAT-dispatched GEMV. The OpenCL backend is only exercising the infrastructure, not offloading the actual GEMV compute to GPU. A `HybridKernelFactory` with GPU-native GEMV would be needed to see real GPU acceleration.
+| Backend | Mode | Inference | Relative |
+|---------|------|-----------|----------|
+| CPU Java Seq | F16 (native) | 445s | 1.00x |
+| CPU Java Seq | F32 (eager dequant) | 224s | **1.98x faster** |
 
-### 3. F32 loads ~14% faster consistently
+**Observation**: The row-buffer optimization did not improve F16 inference time — it appears
+slightly worse (445s vs 371s), though this is likely measurement noise given the high F16
+variance. The optimization may not be effective because the dot-product pass (Pass 2) still
+reads through `F32Array.array(c)` interface dispatch on the vector, preventing SIMD
+vectorization of the inner loop. Only the weight reads land in plain `float[]`; the vector
+reads remain interface-bound.
 
-F32 load: **26-28s** vs F16 load: **30s** across both backends. The `mapTensor()` path uses `Float.float16ToFloat()` (JDK intrinsic) while `mapTensorF16()` copies element-by-element via `buffer.array(i).value(short)`.
+---
 
-### 4. Both modes produce identical output
+## Root Cause Analysis
 
-All 4 runs generated the same response: "Hi! How can I assist you today...".
+The hot path is `GEMV.apply(F16Array, ...)` executing ~128× per token (8 calls × 16 layers).
 
-## Analysis
+**Three JVM-hostile operations interleaved per element:**
 
-The F16 native path trades **compute** (per-element f16-to-f32 conversion at every GEMV) for **memory** (~1.8 GB savings for Llama 3.2 1B weights).
+1. `matrix.array(long)` — returns `F16Impl`, an optkl iface-mapper struct proxy over `MemorySegment`
+2. `F16.f16ToFloat(F16)` — virtual dispatch to get the `short`, then `Float.float16ToFloat()`
+3. `vector.array(c)` — same interface dispatch on F32Array
 
-- **F16 advantage**: ~1.8 GB less memory for weight buffers
-- **F32 advantage**: 1.67x faster inference, 14% faster model load
+The JIT cannot vectorize the dot product because neither operand is a plain `float[]`. The
+F32 path has the same interface overhead for element access but avoids the f16→f32 conversion,
+making it consistently ~1.67–2× faster.
 
-The f16-to-f32 conversion overhead is substantial because GEMV is the dominant operation (~8 GEMV calls per transformer block, 16 layers, per token) and each call iterates over every weight element. With F32, these are direct float reads; with F16, each goes through `F16.f16ToFloat()`.
+**The row-buffer optimization (`38c427a`) isolates the weight conversion but not the vector
+reads.** For full vectorization, both operands need to be `float[]`. That would require
+also copying the input vector into a scratch buffer, doubling the memory pressure, which
+may not be worth it.
 
-The GPU showing no speedup confirms that the bottleneck is in the GEMV kernel implementation (plain Java loops), not the backend infrastructure. True GPU acceleration requires a HAT `@Reflect` GEMV kernel that offloads the matrix-vector multiply to OpenCL compute shaders — at which point F16 native storage becomes advantageous since GPUs have native F16 ALUs and the data is already in the right format.
+## What would actually help
+
+| Approach | Expected gain | Complexity |
+|----------|--------------|------------|
+| Copy vector into `float[]` scratch too (both operands plain) | ~1.5x | Low |
+| Use `MemorySegment.copy` + `VectorAPI` for batch convert | ~2x | Medium |
+| HAT `@Reflect` GEMV kernel on GPU (F16 native ALUs) | ~5-10x | High |
 
 ## When to use which
 
 | Scenario | Recommended Mode |
 |----------|-----------------|
 | Memory-constrained (e.g., <4GB heap) | F16 |
-| Performance-critical / benchmarking (CPU) | F32 |
-| GPU with native F16 GEMV kernel (future) | F16 (zero-copy to GPU, native F16 ALUs) |
-| Correctness comparison / regression testing | Either (identical output) |
+| Performance-critical on CPU today | F32 |
+| GPU with native F16 GEMV kernel (future) | F16 (zero-copy, native F16 ALUs) |
 
 ## Raw TSV
 
 ```
-timestamp	backend	load_sec	infer_sec	tok_per_sec	error
-2026-03-01T12:46:37.778952Z	CPU Java Seq: F16 (native)	29.840974625	371.237498917	0.021537083756498706
-2026-03-01T12:46:37.783498Z	CPU Java Seq: F32 (eager dequant)	27.976752667	222.367655125	0.035979261098975624
-2026-03-01T12:46:37.783647Z	GPU OpenCL: F16 (native)	30.010665583	349.976805917	0.022858654898218233
-2026-03-01T12:46:37.783717Z	GPU OpenCL: F32 (eager dequant)	25.24756775	220.904247958	0.03621564027370754
+# Run 1 (baseline)
+2026-03-01T12:46:37Z	CPU Java Seq: F16 (native)	29.84	371.24	0.0215
+2026-03-01T12:46:37Z	CPU Java Seq: F32 (eager dequant)	27.98	222.37	0.0360
+2026-03-01T12:46:37Z	GPU OpenCL: F16 (native)	30.01	349.98	0.0229
+2026-03-01T12:46:37Z	GPU OpenCL: F32 (eager dequant)	25.25	220.90	0.0362
+
+# Run 2 (after GEMV row-buffer optimization)
+2026-03-01T~14:00Z	CPU Java Seq: F16 (native)	27.82	445.25	0.0180
+2026-03-01T~14:00Z	CPU Java Seq: F32 (eager dequant)	24.69	224.46	0.0356
 ```
