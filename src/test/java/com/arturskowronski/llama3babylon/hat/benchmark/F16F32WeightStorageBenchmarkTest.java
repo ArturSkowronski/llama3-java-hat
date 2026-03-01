@@ -1,10 +1,12 @@
 package com.arturskowronski.llama3babylon.hat.benchmark;
 
+import com.arturskowronski.llama3babylon.hat.BackendType;
 import com.arturskowronski.llama3babylon.hat.WeightStorageMode;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 
 @Tag("benchmark")
@@ -22,10 +24,25 @@ public class F16F32WeightStorageBenchmarkTest {
 
         Path modelPath = InferenceBenchmarkSupport.modelPathFromEnv();
 
-        var results = List.of(
-                InferenceBenchmarkSupport.runWeightMode(modelPath, WeightStorageMode.F16, "Weight Storage: F16 (native)"),
-                InferenceBenchmarkSupport.runWeightMode(modelPath, WeightStorageMode.F32, "Weight Storage: F32 (eager dequant)")
-        );
+        List<InferenceBenchmarkSupport.BenchmarkResult> results = new ArrayList<>();
+
+        // CPU (Java Sequential)
+        results.add(InferenceBenchmarkSupport.runWeightMode(
+                modelPath, WeightStorageMode.F16, BackendType.JAVA_SEQ, "CPU Java Seq: F16 (native)"));
+        results.add(InferenceBenchmarkSupport.runWeightMode(
+                modelPath, WeightStorageMode.F32, BackendType.JAVA_SEQ, "CPU Java Seq: F32 (eager dequant)"));
+
+        // GPU (OpenCL) — only if opted in
+        String runOpenCL = System.getenv("RUN_OPENCL_BENCHMARKS");
+        if (runOpenCL != null && runOpenCL.matches("(?i)true|1|yes")) {
+            results.add(InferenceBenchmarkSupport.runWeightMode(
+                    modelPath, WeightStorageMode.F16, BackendType.OPENCL, "GPU OpenCL: F16 (native)"));
+            results.add(InferenceBenchmarkSupport.runWeightMode(
+                    modelPath, WeightStorageMode.F32, BackendType.OPENCL, "GPU OpenCL: F32 (eager dequant)"));
+        } else {
+            results.add(InferenceBenchmarkSupport.skipped("GPU OpenCL: F16", "Set RUN_OPENCL_BENCHMARKS=true"));
+            results.add(InferenceBenchmarkSupport.skipped("GPU OpenCL: F32", "Set RUN_OPENCL_BENCHMARKS=true"));
+        }
 
         InferenceBenchmarkSupport.recordResults(results);
     }

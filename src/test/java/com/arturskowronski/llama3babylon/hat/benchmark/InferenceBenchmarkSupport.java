@@ -54,8 +54,12 @@ final class InferenceBenchmarkSupport {
     }
 
     static BenchmarkResult runWeightMode(Path modelPath, WeightStorageMode mode, String label) {
+        return runWeightMode(modelPath, mode, BackendType.JAVA_SEQ, label);
+    }
+
+    static BenchmarkResult runWeightMode(Path modelPath, WeightStorageMode mode, BackendType backendType, String label) {
         return runBenchmark(label, () -> new LlamaInference(
-                modelPath, new PlainJavaKernelFactory(), BackendType.JAVA_SEQ, mode));
+                modelPath, new PlainJavaKernelFactory(), backendType, mode));
     }
 
     static BenchmarkResult runPlainJavaCached(Path modelPath) {
