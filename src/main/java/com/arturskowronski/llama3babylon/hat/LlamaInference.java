@@ -24,9 +24,10 @@ public class LlamaInference {
     private final F32Array[] kCaches;
     private final F32Array[] vCaches;
 
-    private final F16Array tokenEmbedding;
+    private final WeightStorageMode weightMode;
+    private final Object tokenEmbedding;   // F16Array or F32Array depending on mode
     private final F32Array outputNormWeight;
-    private final F16Array outputWeight;
+    private final Object outputWeight;     // F16Array or F32Array depending on mode
 
     private final IRMSNorm rmsNorm;
     private final IGEMV gemv;
@@ -42,23 +43,30 @@ public class LlamaInference {
         this(ggufPath, factory, BackendType.JAVA_SEQ);
     }
 
+    public LlamaInference(Path ggufPath, IKernelFactory factory, BackendType backendType) throws IOException {
+        this(ggufPath, factory, backendType, WeightStorageMode.F16);
+    }
+
     /**
-     * Creates a LlamaInference instance with a custom kernel factory and backend.
+     * Creates a LlamaInference instance with full configuration.
      *
      * @param ggufPath path to GGUF model file
      * @param factory kernel factory for creating kernel implementations
      * @param backendType HAT backend to use for acceleration
+     * @param weightMode how to store F16 weight tensors in memory
      */
-    public LlamaInference(Path ggufPath, IKernelFactory factory, BackendType backendType) throws IOException {
+    public LlamaInference(Path ggufPath, IKernelFactory factory, BackendType backendType,
+                           WeightStorageMode weightMode) throws IOException {
         this.model = new LlamaModel(ggufPath, backendType);
+        this.weightMode = weightMode;
         Accelerator acc = model.getAccelerator();
 
         // Load global weights
         // Llama 3.2 1B uses tied embeddings: output classifier shares token_embd.weight
-        this.tokenEmbedding = model.mapTensorF16("token_embd.weight");
+        this.tokenEmbedding = mapProjectionWeight("token_embd.weight");
         this.outputNormWeight = model.mapTensor("output_norm.weight");
         this.outputWeight = model.hasTensor("output.weight")
-                ? model.mapTensorF16("output.weight")
+                ? mapProjectionWeight("output.weight")
                 : tokenEmbedding;
 
         // Initialize kernels using factory
@@ -81,12 +89,19 @@ public class LlamaInference {
         // Create transformer blocks
         this.layers = new TransformerBlock[LlamaModel.NUM_LAYERS];
         for (int l = 0; l < LlamaModel.NUM_LAYERS; l++) {
-            layers[l] = new TransformerBlock(model, l, factory);
+            layers[l] = new TransformerBlock(model, l, factory, weightMode);
         }
 
         // Initialize tokenizer and chat format from GGUF metadata
         this.tokenizer = Tokenizer.fromGGUFMetadata(model.getMetadata().metadata());
         this.chatFormat = new ChatFormat(tokenizer);
+    }
+
+    private Object mapProjectionWeight(String tensorName) throws IOException {
+        return switch (weightMode) {
+            case F16 -> model.mapTensorF16(tensorName);
+            case F32 -> model.mapTensor(tensorName);
+        };
     }
 
     /**
@@ -100,10 +115,20 @@ public class LlamaInference {
         int hiddenSize = LlamaModel.HIDDEN_SIZE;
         int vocabSize = LlamaModel.VOCAB_SIZE;
 
-        // 1. Embedding lookup: copy row from F16 embedding table, converting to F32
+        // 1. Embedding lookup
         int offset = token * hiddenSize;
-        for (int i = 0; i < hiddenSize; i++) {
-            x.array(i, F16.f16ToFloat(tokenEmbedding.array(offset + i)));
+        switch (tokenEmbedding) {
+            case F16Array f16 -> {
+                for (int i = 0; i < hiddenSize; i++) {
+                    x.array(i, F16.f16ToFloat(f16.array(offset + i)));
+                }
+            }
+            case F32Array f32 -> {
+                for (int i = 0; i < hiddenSize; i++) {
+                    x.array(i, f32.array(offset + i));
+                }
+            }
+            default -> throw new IllegalStateException("Unexpected embedding type: " + tokenEmbedding.getClass());
         }
 
         // 2. Transformer layers
@@ -115,7 +140,11 @@ public class LlamaInference {
         rmsNorm.apply(x, outputNormWeight, hiddenSize);
 
         // 4. Classifier GEMV (outputWeight @ x → logits)
-        gemv.apply(outputWeight, x, logits, vocabSize, hiddenSize);
+        switch (outputWeight) {
+            case F16Array f16 -> gemv.apply(f16, x, logits, vocabSize, hiddenSize);
+            case F32Array f32 -> gemv.apply(f32, x, logits, vocabSize, hiddenSize);
+            default -> throw new IllegalStateException("Unexpected output weight type: " + outputWeight.getClass());
+        }
 
         // 5. Copy to plain float[]
         float[] result = new float[vocabSize];

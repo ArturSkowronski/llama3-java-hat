@@ -59,11 +59,23 @@ public class GEMVHAT implements IGEMV {
 
     @Reflect
     public static void gemvKernel(@RO KernelContext kc, @RO F32Array matrix, @RO F32Array vector, @WO F32Array result, @RO int cols) {
-        GEMV.gemvKernel(kc, matrix, vector, result, cols);
+        int row = kc.gix;
+        float sum = 0.0f;
+        int rowOffset = row * cols;
+        for (int c = 0; c < cols; c++) {
+            sum += matrix.array(rowOffset + c) * vector.array(c);
+        }
+        result.array(row, sum);
     }
 
     @Reflect
     public static void gemvKernelF16(@RO KernelContext kc, @RO F16Array matrix, @RO F32Array vector, @WO F32Array result, @RO int cols) {
-        GEMV.gemvKernelF16(kc, matrix, vector, result, cols);
+        int row = kc.gix;
+        float sum = 0.0f;
+        int rowOffset = row * cols;
+        for (int c = 0; c < cols; c++) {
+            sum += F16.f16ToFloat(matrix.array(rowOffset + c)) * vector.array(c);
+        }
+        result.array(row, sum);
     }
 }
