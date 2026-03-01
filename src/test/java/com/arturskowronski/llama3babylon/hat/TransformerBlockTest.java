@@ -33,8 +33,9 @@ public class TransformerBlockTest {
     @Test
     public void testTransformerBlockInitialization() throws IOException {
         Path ggufPath = tempDir.resolve("model.gguf");
-        
+
         // Define all necessary tensors for a single layer
+        // Norm weights are F32 (type 0), projection/FFN weights are F16 (type 1)
         String[] tensorNames = {
             "blk.0.attn_norm.weight",
             "blk.0.attn_q.weight",
@@ -46,20 +47,20 @@ public class TransformerBlockTest {
             "blk.0.ffn_down.weight",
             "blk.0.ffn_up.weight"
         };
-        
-        float[][] tensorData = new float[tensorNames.length][];
-        // Populate with dummy data of correct sizes for 1B model
-        tensorData[0] = new float[LlamaModel.HIDDEN_SIZE]; // attn_norm
-        tensorData[1] = new float[LlamaModel.HIDDEN_SIZE * LlamaModel.HIDDEN_SIZE]; // wq
-        tensorData[2] = new float[LlamaModel.HIDDEN_SIZE * (LlamaModel.NUM_KV_HEADS * LlamaModel.HEAD_DIM)]; // wk
-        tensorData[3] = new float[LlamaModel.HIDDEN_SIZE * (LlamaModel.NUM_KV_HEADS * LlamaModel.HEAD_DIM)]; // wv
-        tensorData[4] = new float[LlamaModel.HIDDEN_SIZE * LlamaModel.HIDDEN_SIZE]; // wo
-        tensorData[5] = new float[LlamaModel.HIDDEN_SIZE]; // ffn_norm
-        tensorData[6] = new float[LlamaModel.INTERMEDIATE_SIZE * LlamaModel.HIDDEN_SIZE]; // w1
-        tensorData[7] = new float[LlamaModel.HIDDEN_SIZE * LlamaModel.INTERMEDIATE_SIZE]; // w2
-        tensorData[8] = new float[LlamaModel.INTERMEDIATE_SIZE * LlamaModel.HIDDEN_SIZE]; // w3
+        int[] tensorTypes = {0, 1, 1, 1, 1, 0, 1, 1, 1}; // F32 for norms, F16 for weights
 
-        MinimalGGUFGenerator.generateLlamaWithTensors(ggufPath, tensorNames, tensorData);
+        float[][] tensorData = new float[tensorNames.length][];
+        tensorData[0] = new float[LlamaModel.HIDDEN_SIZE]; // attn_norm (F32)
+        tensorData[1] = new float[LlamaModel.HIDDEN_SIZE * LlamaModel.HIDDEN_SIZE]; // wq (F16)
+        tensorData[2] = new float[LlamaModel.HIDDEN_SIZE * (LlamaModel.NUM_KV_HEADS * LlamaModel.HEAD_DIM)]; // wk (F16)
+        tensorData[3] = new float[LlamaModel.HIDDEN_SIZE * (LlamaModel.NUM_KV_HEADS * LlamaModel.HEAD_DIM)]; // wv (F16)
+        tensorData[4] = new float[LlamaModel.HIDDEN_SIZE * LlamaModel.HIDDEN_SIZE]; // wo (F16)
+        tensorData[5] = new float[LlamaModel.HIDDEN_SIZE]; // ffn_norm (F32)
+        tensorData[6] = new float[LlamaModel.INTERMEDIATE_SIZE * LlamaModel.HIDDEN_SIZE]; // w1 (F16)
+        tensorData[7] = new float[LlamaModel.HIDDEN_SIZE * LlamaModel.INTERMEDIATE_SIZE]; // w2 (F16)
+        tensorData[8] = new float[LlamaModel.INTERMEDIATE_SIZE * LlamaModel.HIDDEN_SIZE]; // w3 (F16)
+
+        MinimalGGUFGenerator.generateLlamaWithMixedTensors(ggufPath, tensorNames, tensorData, tensorTypes);
 
         LlamaModel model = new LlamaModel(ggufPath, false);
         TransformerBlock block = new TransformerBlock(model, 0, new PlainJavaKernelFactory());
@@ -82,6 +83,7 @@ public class TransformerBlockTest {
             "blk.0.ffn_down.weight",
             "blk.0.ffn_up.weight"
         };
+        int[] tensorTypes = {0, 1, 1, 1, 1, 0, 1, 1, 1}; // F32 for norms, F16 for weights
 
         // Fill weights with small random values so output is non-trivial
         Random rng = new Random(42);
@@ -96,7 +98,7 @@ public class TransformerBlockTest {
         tensorData[7] = randomArray(rng, LlamaModel.HIDDEN_SIZE * LlamaModel.INTERMEDIATE_SIZE, 0.01f);
         tensorData[8] = randomArray(rng, LlamaModel.INTERMEDIATE_SIZE * LlamaModel.HIDDEN_SIZE, 0.01f);
 
-        MinimalGGUFGenerator.generateLlamaWithTensors(ggufPath, tensorNames, tensorData);
+        MinimalGGUFGenerator.generateLlamaWithMixedTensors(ggufPath, tensorNames, tensorData, tensorTypes);
 
         LlamaModel model = new LlamaModel(ggufPath, false);
         Accelerator acc = model.getAccelerator();
