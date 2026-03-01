@@ -219,9 +219,6 @@ sum += F16.f16ToFloat(weight) * vector.array(c);
 ```
 This makes `isLocal()` return true, causing codegen to emit the correct `.value` struct access. Full analysis in `docs/F16_OPENCL_CODEGEN_WORKAROUND.md`.
 
-**Bug 3: HAT Java Sequential backend caches F32Array buffer bounds.**
-The backend caches buffer bounds from the first `@Reflect` kernel dispatch. If the first GEMV call uses a 2048×2048 matrix (4M elements), the backend locks to that bound. A later call with a 128256×2048 matrix (262M elements) throws `IndexOutOfBoundsException`. *Workaround:* Prime GEMV with the largest matrix first (the classifier at 128256×2048). Documented in `HAT_BUG_REPORT.md`.
-
 ### Why hybrid kernels?
 
 Both RMSNorm and Softmax have two phases: a reduction (sum of squares for RMSNorm, find-max-then-sum-exp for Softmax) that reads all elements to produce a single scalar, followed by a normalization that multiplies every element by that scalar.
