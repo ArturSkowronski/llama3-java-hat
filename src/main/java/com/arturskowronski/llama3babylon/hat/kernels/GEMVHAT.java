@@ -54,8 +54,16 @@ public class GEMVHAT implements IGEMV {
         cc.dispatchKernel(NDRange.of1D(rows), kc -> gemvKernel(kc, matrix, vector, result, cols));
     }
 
+    // Kernel body inlined (not delegated cross-class) to avoid OpenCL
+    // "redefinition" error when codegen emits same name as HAT_FUNC + HAT_KERNEL.
     @Reflect
     public static void gemvKernel(@RO KernelContext kc, @RO F32Array matrix, @RO F32Array vector, @WO F32Array result, @RO int cols) {
-        GEMV.gemvKernel(kc, matrix, vector, result, cols);
+        int row = kc.gix;
+        float sum = 0.0f;
+        int rowOffset = row * cols;
+        for (int c = 0; c < cols; c++) {
+            sum += matrix.array(rowOffset + c) * vector.array(c);
+        }
+        result.array(row, sum);
     }
 }
