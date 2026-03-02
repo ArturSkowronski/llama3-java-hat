@@ -127,12 +127,17 @@ jobs:
           name: babylon-jdk
           path: babylon-jdk
 
-      - name: Install OpenCL CPU Runtime (Intel + PoCL fallback)
+      - name: Install OpenCL CPU Runtime (Intel oneAPI + PoCL fallback)
         run: |
+          # Intel oneAPI CPU runtime — supports cl_khr_fp16 (experimental) on x86 CPU
+          wget -qO- https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB \
+            | gpg --dearmor \
+            | sudo tee /usr/share/keyrings/oneapi-archive-keyring.gpg > /dev/null
+          echo "deb [signed-by=/usr/share/keyrings/oneapi-archive-keyring.gpg] https://apt.repos.intel.com/oneapi all main" \
+            | sudo tee /etc/apt/sources.list.d/oneAPI.list
           sudo apt-get update
-          # Intel OpenCL CPU runtime — may support cl_khr_fp16 via software emulation
-          sudo apt-get install -y intel-opencl-icd ocl-icd-libopencl1 clinfo || true
-          # PoCL as fallback if Intel runtime not available
+          sudo apt-get install -y intel-oneapi-runtime-opencl ocl-icd-libopencl1 clinfo
+          # PoCL as fallback
           sudo apt-get install -y pocl-opencl-icd || true
           echo "--- OpenCL devices ---"
           clinfo --list || true
@@ -181,6 +186,8 @@ jobs:
         run: |
           export JAVA_HOME=$JAVA_BABYLON_ROOT/build/linux-x86_64-server-release/images/jdk
           export PATH=$JAVA_HOME/bin:$PATH
+          # Enable Intel CPU experimental FP16 support
+          export CL_CONFIG_CPU_EXPERIMENTAL_FP16=1
           echo "=== Running F16.f16ToFloat() OpenCL codegen bug reproducer ==="
           echo "=== Expected: FAILS until fixed in Babylon upstream           ==="
           ./gradlew babylonBugReproducer
