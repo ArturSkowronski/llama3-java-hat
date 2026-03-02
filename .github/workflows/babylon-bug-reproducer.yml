@@ -127,12 +127,17 @@ jobs:
           name: babylon-jdk
           path: babylon-jdk
 
-      - name: Install OpenCL CPU Runtime (PoCL)
+      - name: Install OpenCL CPU Runtime (Intel + PoCL fallback)
         run: |
           sudo apt-get update
-          sudo apt-get install -y pocl-opencl-icd ocl-icd-libopencl1 clinfo
+          # Intel OpenCL CPU runtime — may support cl_khr_fp16 via software emulation
+          sudo apt-get install -y intel-opencl-icd ocl-icd-libopencl1 clinfo || true
+          # PoCL as fallback if Intel runtime not available
+          sudo apt-get install -y pocl-opencl-icd || true
           echo "--- OpenCL devices ---"
           clinfo --list || true
+          echo "--- cl_khr_fp16 support ---"
+          clinfo 2>/dev/null | grep -i fp16 || echo "cl_khr_fp16 not found in clinfo"
 
       - name: Setup Environment
         run: |
