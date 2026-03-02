@@ -13,6 +13,12 @@ name: Babylon Bug Reproducer — F16.f16ToFloat() OpenCL Codegen
 
 on:
   workflow_dispatch:
+    inputs:
+      babylon-branch:
+        description: 'Babylon branch to test (openjdk/babylon)'
+        required: false
+        default: 'code-reflection'
+        type: string
   push:
     paths:
       - 'src/test/java/**/F16ToFloatOpenCLCodegenTest.java'
@@ -30,7 +36,7 @@ jobs:
         with:
           repository: openjdk/babylon
           path: babylon
-          ref: code-reflection
+          ref: ${{ inputs.babylon-branch || 'code-reflection' }}
 
       - name: Cache Babylon JDK and HAT
         id: cache-babylon
@@ -122,15 +128,6 @@ jobs:
           sudo apt-get install -y pocl-opencl-icd ocl-icd-libopencl1 clinfo
           echo "--- OpenCL devices ---"
           clinfo --list || true
-          # Check if cl_khr_fp16 is available on this platform.
-          # PoCL (CPU) typically lacks it; a GPU with native FP16 would have it.
-          # Tests that require FP16 execution use OPENCL_HAS_F16 to skip gracefully.
-          if clinfo 2>/dev/null | grep -q "cl_khr_fp16"; then
-            echo "OPENCL_HAS_F16=true" >> $GITHUB_ENV
-          else
-            echo "OPENCL_HAS_F16=false" >> $GITHUB_ENV
-            echo "Note: cl_khr_fp16 not supported — FP16 execution tests will be skipped"
-          fi
 
       - name: Setup Environment
         run: |
