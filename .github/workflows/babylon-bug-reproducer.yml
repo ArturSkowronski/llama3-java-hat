@@ -115,14 +115,17 @@ jobs:
       - name: Install OpenCL CPU Runtime (PoCL)
         run: |
           sudo apt-get update
-          sudo apt-get install -y pocl-opencl-icd ocl-icd-opencl-dev
-          clinfo --list 2>/dev/null || echo "(clinfo not available, but PoCL ICD is installed)"
+          sudo apt-get install -y pocl-opencl-icd ocl-icd-libopencl1 clinfo
+          echo "--- OpenCL devices ---"
+          clinfo --list || true
 
       - name: Setup Environment
         run: |
           JDK_PATH=babylon-jdk/build/linux-x86_64-server-release/images/jdk
           chmod -R +x $JDK_PATH/bin/
           find $JDK_PATH/lib -type f -name "jspawnhelper" -exec chmod +x {} \;
+          find $JDK_PATH/lib -type f -name "*.so" -exec chmod +x {} \;
+          find babylon-jdk/hat/build -type f -name "*.so" -exec chmod +x {} \; 2>/dev/null || true
           echo "JAVA_BABYLON_ROOT=$(pwd)/babylon-jdk" >> $GITHUB_ENV
           chmod +x gradlew
 
