@@ -4,6 +4,17 @@ on:
   schedule:
     - cron: '0 2 * * *'  # 2 AM UTC daily
   workflow_dispatch:
+    inputs:
+      babylon-repo:
+        description: 'Babylon repository (owner/repo)'
+        required: false
+        default: 'openjdk/babylon'
+        type: string
+      babylon-branch:
+        description: 'Babylon branch to build'
+        required: false
+        default: 'code-reflection'
+        type: string
 
 jobs:
   build-babylon:
@@ -12,9 +23,9 @@ jobs:
       - name: Checkout Babylon
         uses: actions/checkout@v4
         with:
-          repository: openjdk/babylon
+          repository: ${{ inputs.babylon-repo || 'openjdk/babylon' }}
           path: babylon
-          ref: code-reflection
+          ref: ${{ inputs.babylon-branch || 'code-reflection' }}
 
       - name: Cache Babylon JDK and HAT
         id: cache-babylon
@@ -194,6 +205,17 @@ jobs:
         with:
           name: babylon-jdk-nightly
           path: babylon-jdk
+
+      - name: Install OpenCL CPU Runtime (Intel oneAPI)
+        run: |
+          wget -qO- https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB \
+            | gpg --dearmor \
+            | sudo tee /usr/share/keyrings/oneapi-archive-keyring.gpg > /dev/null
+          echo "deb [signed-by=/usr/share/keyrings/oneapi-archive-keyring.gpg] https://apt.repos.intel.com/oneapi all main" \
+            | sudo tee /etc/apt/sources.list.d/oneAPI.list
+          sudo apt-get update
+          sudo apt-get install -y intel-oneapi-runtime-opencl ocl-icd-libopencl1 clinfo
+          clinfo --list || true
 
       - name: Setup Environment
         run: |
