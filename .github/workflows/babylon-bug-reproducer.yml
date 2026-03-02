@@ -14,8 +14,13 @@ name: Babylon Bug Reproducer — F16.f16ToFloat() OpenCL Codegen
 on:
   workflow_dispatch:
     inputs:
+      babylon-repo:
+        description: 'Babylon repository (owner/repo)'
+        required: false
+        default: 'openjdk/babylon'
+        type: string
       babylon-branch:
-        description: 'Babylon branch to test (openjdk/babylon)'
+        description: 'Babylon branch to test'
         required: false
         default: 'code-reflection'
         type: string
@@ -34,7 +39,7 @@ jobs:
       - name: Checkout Babylon
         uses: actions/checkout@v4
         with:
-          repository: openjdk/babylon
+          repository: ${{ inputs.babylon-repo || 'openjdk/babylon' }}
           path: babylon
           ref: ${{ inputs.babylon-branch || 'code-reflection' }}
 
