@@ -17,6 +17,7 @@ import java.lang.invoke.MethodHandles;
 import static optkl.ifacemapper.MappableIface.RO;
 import static optkl.ifacemapper.MappableIface.WO;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 /**
  * Reproducer for Babylon HAT bug: F16.f16ToFloat() generates incorrect OpenCL C
@@ -140,9 +141,16 @@ public class F16ToFloatOpenCLCodegenTest {
      * PASSES on OpenCL backend: extracting to a local variable makes isLocal() return true,
      * so codegen correctly emits (float)matrix->array[i].value.
      * Same arithmetic as the failing test — only difference is the local variable.
+     *
+     * Skipped when cl_khr_fp16 is unavailable (e.g. PoCL on CI) because even correct
+     * F16Array codegen requires the FP16 extension at kernel execution time.
+     * Set OPENCL_HAS_F16=true to run (or use a GPU with native FP16 support).
      */
     @Test
     void testF16ToFloatViaLocalVariable() {
+        assumeTrue("true".equals(System.getenv("OPENCL_HAS_F16")),
+                "Skipping: cl_khr_fp16 not available on this OpenCL platform (set OPENCL_HAS_F16=true to run)");
+
         Accelerator accelerator = new Accelerator(MethodHandles.lookup(), BackendType.OPENCL.predicate());
 
         int rows = 2, cols = 4;
