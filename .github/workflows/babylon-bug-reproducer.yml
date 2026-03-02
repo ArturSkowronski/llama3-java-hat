@@ -137,8 +137,7 @@ jobs:
             | sudo tee /etc/apt/sources.list.d/oneAPI.list
           sudo apt-get update
           sudo apt-get install -y intel-oneapi-runtime-opencl ocl-icd-libopencl1 clinfo
-          # PoCL as fallback
-          sudo apt-get install -y pocl-opencl-icd || true
+          # Do NOT install PoCL — it lacks cl_khr_fp16 and would be picked over Intel runtime
           echo "--- OpenCL devices ---"
           clinfo --list || true
           echo "--- cl_khr_fp16 support ---"
