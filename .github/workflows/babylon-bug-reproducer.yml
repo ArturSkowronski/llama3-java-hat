@@ -129,6 +129,10 @@ jobs:
           find $JDK_PATH/lib -type f -name "*.so" -exec chmod +x {} \;
           find babylon-jdk/hat/build -type f -name "*.so" -exec chmod +x {} \; 2>/dev/null || true
           echo "JAVA_BABYLON_ROOT=$(pwd)/babylon-jdk" >> $GITHUB_ENV
+          # LD_LIBRARY_PATH so the dynamic linker finds libshared_backend.so and libOpenCL
+          # when the JVM loads libopencl_backend.so (java.library.path only helps for the
+          # top-level loadLibrary call, not for transitive .so dependencies).
+          echo "LD_LIBRARY_PATH=$(pwd)/babylon-jdk/hat/build:/usr/lib/x86_64-linux-gnu" >> $GITHUB_ENV
           chmod +x gradlew
 
       - name: Build Project
@@ -141,17 +145,16 @@ jobs:
         run: |
           echo "=== Artifact root ==="
           ls -la babylon-jdk/
-          echo "=== HAT build contents ==="
-          find babylon-jdk -name "*.so" -o -name "*.jar" 2>/dev/null | sort
           echo "=== java.library.path will be ==="
           echo "JAVA_BABYLON_ROOT=$JAVA_BABYLON_ROOT"
+          echo "LD_LIBRARY_PATH=$LD_LIBRARY_PATH"
           echo "hat/build path: $JAVA_BABYLON_ROOT/hat/build"
-          ls -la $JAVA_BABYLON_ROOT/hat/build/ 2>/dev/null || echo "(path not found)"
-          echo "=== Symbols in opencl_backend.so (if found) ==="
+          ls -la $JAVA_BABYLON_ROOT/hat/build/*.so 2>/dev/null || echo "(no .so files found)"
+          echo "=== ldd on opencl_backend.so ==="
           SO=$(find babylon-jdk -name "*opencl_backend*.so" 2>/dev/null | head -1)
           if [ -n "$SO" ]; then
             echo "Found: $SO"
-            nm -D "$SO" | grep -i "getBackend\|backend" || echo "(no matching symbols)"
+            ldd "$SO" || echo "(ldd failed)"
           else
             echo "opencl_backend.so NOT FOUND"
           fi
