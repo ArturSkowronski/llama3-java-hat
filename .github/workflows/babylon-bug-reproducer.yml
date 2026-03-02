@@ -1,0 +1,141 @@
+name: Babylon Bug Reproducer — F16.f16ToFloat() OpenCL Codegen
+
+# This workflow reproduces a Babylon HAT codegen bug:
+# F16.f16ToFloat() generates broken OpenCL C when called on an F16Array element.
+# See: docs/babylon-bug-report-f16ToFloat.md
+#
+# Expected: FAILS until fixed in Babylon upstream (openjdk/babylon code-reflection branch).
+# Once fixed, this workflow will turn green automatically.
+#
+# Run manually: Actions → "Babylon Bug Reproducer" → Run workflow
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'src/test/java/**/F16ToFloatOpenCLCodegenTest.java'
+      - 'docs/babylon-bug-report-f16ToFloat.md'
+      - '.github/workflows/babylon-bug-reproducer.yml'
+
+jobs:
+  build-babylon:
+    runs-on: ubuntu-latest
+    outputs:
+      babylon-home: ${{ steps.set-path.outputs.babylon-home }}
+    steps:
+      - name: Checkout Babylon
+        uses: actions/checkout@v4
+        with:
+          repository: openjdk/babylon
+          path: babylon
+          ref: code-reflection
+
+      - name: Cache Babylon JDK and HAT
+        id: cache-babylon
+        uses: actions/cache@v4
+        with:
+          path: |
+            babylon/build
+            babylon/hat/build
+          key: ${{ runner.os }}-babylon-hat-${{ hashFiles('babylon/.git/HEAD') }}
+          restore-keys: |
+            ${{ runner.os }}-babylon-hat-
+
+      - name: Install Build Dependencies
+        if: steps.cache-babylon.outputs.cache-hit != 'true'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential libx11-dev libxext-dev libxrender-dev \
+            libxrandr-dev libxtst-dev libxt-dev libcups2-dev libasound2-dev \
+            libfontconfig1-dev autoconf
+
+      - name: Setup Boot JDK
+        if: steps.cache-babylon.outputs.cache-hit != 'true'
+        uses: actions/setup-java@v4
+        with:
+          java-version: '25'
+          distribution: 'temurin'
+
+      - name: Configure and Build Babylon JDK
+        if: steps.cache-babylon.outputs.cache-hit != 'true'
+        id: build-jdk
+        continue-on-error: true
+        run: |
+          cd babylon
+          bash configure \
+            --with-conf-name=linux-x86_64-server-release \
+            --with-debug-level=release \
+            --with-native-debug-symbols=none \
+            --disable-warnings-as-errors
+          make images JOBS=$(nproc) CONF=linux-x86_64-server-release
+
+      - name: Retry Build if failed
+        if: steps.cache-babylon.outputs.cache-hit != 'true' && steps.build-jdk.outcome == 'failure'
+        run: |
+          cd babylon
+          make reconfigure JOBS=$(nproc) CONF=linux-x86_64-server-release
+          make images JOBS=$(nproc) CONF=linux-x86_64-server-release
+
+      - name: Build HAT
+        if: steps.cache-babylon.outputs.cache-hit != 'true'
+        run: |
+          cd babylon/hat
+          export JAVA_HOME=$(pwd)/../build/linux-x86_64-server-release/images/jdk
+          export PATH=$JAVA_HOME/bin:$PATH
+          bash hat/bootstrap.bash
+          java -cp hat/job.jar --enable-preview --source 26 hat.java bld
+
+      - name: Set Babylon Home Output
+        id: set-path
+        run: echo "babylon-home=$(pwd)/babylon/build/linux-x86_64-server-release/images/jdk" >> $GITHUB_OUTPUT
+
+      - name: Upload Babylon Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: babylon-jdk
+          path: |
+            babylon/build/linux-x86_64-server-release/images/jdk
+            babylon/hat/build
+          include-hidden-files: true
+          retention-days: 7
+
+  reproduce-bug:
+    needs: build-babylon
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Project
+        uses: actions/checkout@v4
+
+      - name: Download Babylon Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: babylon-jdk
+          path: babylon-jdk
+
+      - name: Install OpenCL CPU Runtime (PoCL)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y pocl-opencl-icd ocl-icd-opencl-dev
+          clinfo --list 2>/dev/null || echo "(clinfo not available, but PoCL ICD is installed)"
+
+      - name: Setup Environment
+        run: |
+          JDK_PATH=babylon-jdk/build/linux-x86_64-server-release/images/jdk
+          chmod -R +x $JDK_PATH/bin/
+          find $JDK_PATH/lib -type f -name "jspawnhelper" -exec chmod +x {} \;
+          echo "JAVA_BABYLON_ROOT=$(pwd)/babylon-jdk" >> $GITHUB_ENV
+          chmod +x gradlew
+
+      - name: Build Project
+        run: |
+          export JAVA_HOME=$JAVA_BABYLON_ROOT/build/linux-x86_64-server-release/images/jdk
+          export PATH=$JAVA_HOME/bin:$PATH
+          ./gradlew build
+
+      - name: Run Bug Reproducer
+        run: |
+          export JAVA_HOME=$JAVA_BABYLON_ROOT/build/linux-x86_64-server-release/images/jdk
+          export PATH=$JAVA_HOME/bin:$PATH
+          echo "=== Running F16.f16ToFloat() OpenCL codegen bug reproducer ==="
+          echo "=== Expected: FAILS until fixed in Babylon upstream           ==="
+          ./gradlew babylonBugReproducer

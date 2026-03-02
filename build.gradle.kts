@@ -33,7 +33,7 @@ dependencies {
 tasks.test {
     useJUnitPlatform {
         // Keep `test` unit-only. Integration/benchmark/regression tests are run by dedicated tasks/workflows.
-        excludeTags("plain-integration", "hat-integration", "benchmark", "regression")
+        excludeTags("plain-integration", "hat-integration", "benchmark", "regression", "babylon-bug")
     }
     jvmArgs(application.applicationDefaultJvmArgs)
 }
@@ -249,6 +249,14 @@ tasks.register("benchmarkMicroAll") {
         "benchmarkMicroSoftmax",
         "benchmarkMicroAttention"
     )
+}
+
+tasks.register<Test>("babylonBugReproducer") {
+    configureBaseTestTask("Reproduces Babylon F16.f16ToFloat() OpenCL codegen bug. Fails until fixed upstream.")
+    useJUnitPlatform {
+        includeTags("babylon-bug")
+    }
+    configureVerboseTestLogging()
 }
 
 tasks.register<Test>("regressionTest") {
