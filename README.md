@@ -190,6 +190,35 @@ P.S. [Gemini Code Assist](https://cloud.google.com/products/gemini-code-assist) 
 
 ## Findings
 
+### Babylon OpenCL codegen bugs found during development
+
+While getting all 6 HAT kernels running on GPU via OpenCL, we discovered two codegen issues in the Babylon HAT pipeline:
+
+**Bug 1: Cross-class kernel delegation causes "redefinition" error.**
+When a `@Reflect` kernel method in one class delegates to a `@Reflect` method in another class (e.g., `GEMVHAT.gemvKernel()` calling `GEMV.gemvKernel()`), the codegen emits the same function name twice — once as `HAT_FUNC` (helper) and once as `HAT_KERNEL` (entry point) — causing an OpenCL compile error: `error: redefinition of 'gemvKernel'`.
+
+*Workaround:* Inline kernel bodies directly in HAT classes instead of delegating cross-class. This matches the pattern used in official Babylon examples (e.g., `nbody`).
+
+**Bug 2: `F16.f16ToFloat()` generates broken OpenCL when called on array elements.**
+`F16.f16ToFloat(matrix.array(i))` generates incorrect OpenCL C:
+```c
+// Generated (broken):
+(float)&matrix->array[i]->value
+// Should be:
+(float)matrix->array[i].value
+```
+Two errors: `->` instead of `.` (struct member, not pointer) and a spurious `&` (address-of rvalue). The root cause is in `OpenCLHATKernelBuilder.hatF16ToFloatConvOp()` where `isLocal()` misclassifies array element access as a pointer. Official Babylon F16 tests (17/17 pass) use `F16.add/mul/sub` which are lowered differently and don't hit this path.
+
+*Workaround:* Extract the F16 array element to a local variable before calling `f16ToFloat`:
+```java
+// Before (broken on OpenCL):
+sum += F16.f16ToFloat(matrix.array(i)) * vector.array(c);
+// After (works):
+F16 weight = matrix.array(i);
+sum += F16.f16ToFloat(weight) * vector.array(c);
+```
+This makes `isLocal()` return true, causing codegen to emit the correct `.value` struct access. Full analysis in `docs/F16_OPENCL_CODEGEN_WORKAROUND.md`.
+
 ### Why hybrid kernels?
 
 Both RMSNorm and Softmax have two phases: a reduction (sum of squares for RMSNorm, find-max-then-sum-exp for Softmax) that reads all elements to produce a single scalar, followed by a normalization that multiplies every element by that scalar.

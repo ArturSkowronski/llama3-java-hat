@@ -1,6 +1,7 @@
 package com.arturskowronski.llama3babylon.hat;
 
 import hat.Accelerator;
+import hat.buffer.F16Array;
 import hat.buffer.F32Array;
 import com.arturskowronski.llama3babylon.hat.kernels.*;
 
@@ -31,16 +32,16 @@ public class TransformerBlock {
     private final ISiLU silu;
 
     // Weights (mapped from model)
-    private final F32Array attnNormWeight;
-    private final F32Array wq;
-    private final F32Array wk;
-    private final F32Array wv;
-    private final F32Array wo;
-    
-    private final F32Array ffnNormWeight;
-    private final F32Array w1;
-    private final F32Array w2;
-    private final F32Array w3;
+    private final F32Array attnNormWeight;  // F32 in GGUF — norm weights stay F32
+    private final F16Array wq;
+    private final F16Array wk;
+    private final F16Array wv;
+    private final F16Array wo;
+
+    private final F32Array ffnNormWeight;   // F32 in GGUF — norm weights stay F32
+    private final F16Array w1;
+    private final F16Array w2;
+    private final F16Array w3;
 
     // Buffers for intermediate results
     private final F32Array q;
@@ -69,17 +70,18 @@ public class TransformerBlock {
         this.silu = factory.createSiLU(acc);
 
         // Map Weights (GGUF standard naming: blk.{N}.*)
+        // Norm weights are F32 in GGUF; projection/FFN weights are F16
         String prefix = "blk." + layerIdx + ".";
         this.attnNormWeight = model.mapTensor(prefix + "attn_norm.weight");
-        this.wq = model.mapTensor(prefix + "attn_q.weight");
-        this.wk = model.mapTensor(prefix + "attn_k.weight");
-        this.wv = model.mapTensor(prefix + "attn_v.weight");
-        this.wo = model.mapTensor(prefix + "attn_output.weight");
+        this.wq = model.mapTensorF16(prefix + "attn_q.weight");
+        this.wk = model.mapTensorF16(prefix + "attn_k.weight");
+        this.wv = model.mapTensorF16(prefix + "attn_v.weight");
+        this.wo = model.mapTensorF16(prefix + "attn_output.weight");
 
         this.ffnNormWeight = model.mapTensor(prefix + "ffn_norm.weight");
-        this.w1 = model.mapTensor(prefix + "ffn_gate.weight");
-        this.w2 = model.mapTensor(prefix + "ffn_down.weight");
-        this.w3 = model.mapTensor(prefix + "ffn_up.weight");
+        this.w1 = model.mapTensorF16(prefix + "ffn_gate.weight");
+        this.w2 = model.mapTensorF16(prefix + "ffn_down.weight");
+        this.w3 = model.mapTensorF16(prefix + "ffn_up.weight");
 
         // Pre-allocate Intermediate Buffers
         this.q = F32Array.create(acc, LlamaModel.HIDDEN_SIZE);

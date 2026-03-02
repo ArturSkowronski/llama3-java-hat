@@ -1,7 +1,9 @@
 package com.arturskowronski.llama3babylon.hat;
 
 import hat.Accelerator;
+import hat.buffer.F16Array;
 import hat.buffer.F32Array;
+import hat.types.F16;
 
 import java.io.IOException;
 import java.lang.foreign.Arena;
@@ -38,6 +40,7 @@ public class LlamaModel {
     private final Path modelPath;
     private final Accelerator accelerator;
     private final Map<String, F32Array> tensors = new HashMap<>();
+    private final Map<String, F16Array> f16Tensors = new HashMap<>();
 
     public LlamaModel(Path ggufPath) throws IOException {
         this(ggufPath, BackendType.JAVA_SEQ, true);
@@ -162,6 +165,53 @@ public class LlamaModel {
         }
 
         tensors.put(tensorName, buffer);
+        return buffer;
+    }
+
+    /**
+     * Maps an F16 tensor from the GGUF file into a HAT F16Array buffer.
+     * The tensor must be F16 (type 1) in the GGUF file.
+     *
+     * @param tensorName the name of the tensor to load
+     * @return F16Array containing the raw half-precision data
+     * @throws IOException if tensor not found or not F16
+     */
+    public F16Array mapTensorF16(String tensorName) throws IOException {
+        if (f16Tensors.containsKey(tensorName)) {
+            return f16Tensors.get(tensorName);
+        }
+
+        GGUFReader.GGUFTensorInfo tensorInfo = metadata.tensors().stream()
+                .filter(t -> t.name().equals(tensorName))
+                .findFirst()
+                .orElseThrow(() -> new IOException("Tensor not found: " + tensorName));
+
+        int type = tensorInfo.type();
+        if (type != 1) {
+            throw new IOException("Expected F16 tensor (type 1), got type " + type + " for tensor: " + tensorName);
+        }
+
+        long elementCount = 1;
+        for (long dim : tensorInfo.shape()) {
+            elementCount *= dim;
+        }
+
+        F16Array buffer = F16Array.create(accelerator, (int) elementCount);
+        long absoluteOffset = metadata.dataStartOffset() + tensorInfo.offset();
+
+        try (FileChannel channel = FileChannel.open(modelPath, StandardOpenOption.READ);
+             Arena arena = Arena.ofConfined()) {
+
+            long dataSize = tensorInfo.size();
+            MemorySegment segment = channel.map(FileChannel.MapMode.READ_ONLY, absoluteOffset, dataSize, arena);
+
+            for (int i = 0; i < elementCount; i++) {
+                short f16 = segment.get(ValueLayout.JAVA_SHORT_UNALIGNED, (long) i * 2);
+                buffer.array(i).value(f16);
+            }
+        }
+
+        f16Tensors.put(tensorName, buffer);
         return buffer;
     }
 
