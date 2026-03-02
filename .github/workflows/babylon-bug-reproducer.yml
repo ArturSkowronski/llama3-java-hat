@@ -37,9 +37,11 @@ jobs:
           path: |
             babylon/build
             babylon/hat/build
-          key: ${{ runner.os }}-babylon-hat-${{ hashFiles('babylon/.git/HEAD') }}
+          # Separate key from ci.yml: HAT must be built WITH OpenCL dev headers
+          # so the native opencl_backend.so is compiled with full OpenCL support.
+          key: ${{ runner.os }}-babylon-hat-opencl-${{ hashFiles('babylon/.git/HEAD') }}
           restore-keys: |
-            ${{ runner.os }}-babylon-hat-
+            ${{ runner.os }}-babylon-hat-opencl-
 
       - name: Install Build Dependencies
         if: steps.cache-babylon.outputs.cache-hit != 'true'
@@ -47,7 +49,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y build-essential libx11-dev libxext-dev libxrender-dev \
             libxrandr-dev libxtst-dev libxt-dev libcups2-dev libasound2-dev \
-            libfontconfig1-dev autoconf
+            libfontconfig1-dev autoconf ocl-icd-opencl-dev
 
       - name: Setup Boot JDK
         if: steps.cache-babylon.outputs.cache-hit != 'true'
