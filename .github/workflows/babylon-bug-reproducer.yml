@@ -137,6 +137,25 @@ jobs:
           export PATH=$JAVA_HOME/bin:$PATH
           ./gradlew build
 
+      - name: Diagnose HAT native library
+        run: |
+          echo "=== Artifact root ==="
+          ls -la babylon-jdk/
+          echo "=== HAT build contents ==="
+          find babylon-jdk -name "*.so" -o -name "*.jar" 2>/dev/null | sort
+          echo "=== java.library.path will be ==="
+          echo "JAVA_BABYLON_ROOT=$JAVA_BABYLON_ROOT"
+          echo "hat/build path: $JAVA_BABYLON_ROOT/hat/build"
+          ls -la $JAVA_BABYLON_ROOT/hat/build/ 2>/dev/null || echo "(path not found)"
+          echo "=== Symbols in opencl_backend.so (if found) ==="
+          SO=$(find babylon-jdk -name "*opencl_backend*.so" 2>/dev/null | head -1)
+          if [ -n "$SO" ]; then
+            echo "Found: $SO"
+            nm -D "$SO" | grep -i "getBackend\|backend" || echo "(no matching symbols)"
+          else
+            echo "opencl_backend.so NOT FOUND"
+          fi
+
       - name: Run Bug Reproducer
         run: |
           export JAVA_HOME=$JAVA_BABYLON_ROOT/build/linux-x86_64-server-release/images/jdk
