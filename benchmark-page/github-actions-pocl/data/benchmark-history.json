@@ -309,6 +309,34 @@
           "error": "SKIPPED: No runtime available"
         }
       }
+    },
+    {
+      "date": "2026-03-02T10:45:50+01:00",
+      "commit": "51284c9e6f3c41855a806294a215815ca9eb1ce9",
+      "source": "github-actions-pocl",
+      "results": {
+        "Plain Java": {
+          "load_sec": 15.401247029,
+          "infer_sec": 525.113094923,
+          "tok_per_sec": 0.015234813371342571
+        },
+        "HAT Java Sequential": {
+          "load_sec": 15.344058966,
+          "infer_sec": 530.238419396,
+          "tok_per_sec": 0.015087552518568687
+        },
+        "HAT Java MT": {
+          "load_sec": 15.580538282,
+          "infer_sec": 349.727586367,
+          "tok_per_sec": 0.022874946992614116
+        },
+        "HAT OpenCL GPU": {
+          "load_sec": -1.0,
+          "infer_sec": -1,
+          "tok_per_sec": -1,
+          "error": "SKIPPED: No runtime available"
+        }
+      }
     }
   ]
 }
