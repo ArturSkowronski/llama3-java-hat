@@ -4,6 +4,17 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      babylon-repo:
+        description: 'Babylon repository (owner/repo)'
+        required: false
+        default: 'openjdk/babylon'
+        type: string
+      babylon-branch:
+        description: 'Babylon branch to build'
+        required: false
+        default: 'code-reflection'
+        type: string
 
 permissions:
   contents: write
@@ -15,9 +26,9 @@ jobs:
       - name: Checkout Babylon
         uses: actions/checkout@v4
         with:
-          repository: openjdk/babylon
+          repository: ${{ inputs.babylon-repo || 'openjdk/babylon' }}
           path: babylon
-          ref: code-reflection
+          ref: ${{ inputs.babylon-branch || 'code-reflection' }}
 
       - name: Cache Babylon JDK and HAT
         id: cache-babylon
@@ -125,10 +136,14 @@ jobs:
           chmod +x scripts/download_llama_fp16.sh
           ./scripts/download_llama_fp16.sh
 
-      - name: Install PoCL (CPU OpenCL)
+      - name: Install OpenCL CPU Runtime (Intel oneAPI)
         run: |
+          wget -q https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB -O /tmp/intel-gpg.pub
+          sudo gpg --yes --dearmor --output /usr/share/keyrings/oneapi-archive-keyring.gpg /tmp/intel-gpg.pub
+          echo "deb [signed-by=/usr/share/keyrings/oneapi-archive-keyring.gpg] https://apt.repos.intel.com/oneapi all main" \
+            | sudo tee /etc/apt/sources.list.d/oneAPI.list
           sudo apt-get update
-          sudo apt-get install -y pocl-opencl-icd ocl-icd-libopencl1 clinfo
+          sudo apt-get install -y intel-oneapi-runtime-opencl ocl-icd-libopencl1 clinfo
           echo "--- OpenCL devices ---"
           clinfo --list || true
 

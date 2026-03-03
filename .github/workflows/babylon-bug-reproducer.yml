@@ -24,11 +24,6 @@ on:
         required: false
         default: 'code-reflection'
         type: string
-  push:
-    paths:
-      - 'src/test/java/**/F16ToFloatOpenCLCodegenTest.java'
-      - 'docs/babylon-bug-report-f16ToFloat.md'
-      - '.github/workflows/babylon-bug-reproducer.yml'
 
 jobs:
   build-babylon:
@@ -130,9 +125,8 @@ jobs:
       - name: Install OpenCL CPU Runtime (Intel oneAPI + PoCL fallback)
         run: |
           # Intel oneAPI CPU runtime — supports cl_khr_fp16 (experimental) on x86 CPU
-          wget -qO- https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB \
-            | gpg --dearmor \
-            | sudo tee /usr/share/keyrings/oneapi-archive-keyring.gpg > /dev/null
+          wget -q https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB -O /tmp/intel-gpg.pub
+          sudo gpg --yes --dearmor --output /usr/share/keyrings/oneapi-archive-keyring.gpg /tmp/intel-gpg.pub
           echo "deb [signed-by=/usr/share/keyrings/oneapi-archive-keyring.gpg] https://apt.repos.intel.com/oneapi all main" \
             | sudo tee /etc/apt/sources.list.d/oneAPI.list
           sudo apt-get update
