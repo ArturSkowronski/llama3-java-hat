@@ -76,6 +76,10 @@ final class InferenceBenchmarkSupport {
         return runBenchmark(label, () -> new LlamaInference(modelPath, new HybridKernelFactory(ALL_KERNELS), backendType));
     }
 
+    static BenchmarkResult runHat(Path modelPath, BackendType backendType, WeightStorageMode mode, String label) {
+        return runBenchmark(label, () -> new LlamaInference(modelPath, new HybridKernelFactory(ALL_KERNELS), backendType, mode));
+    }
+
     static BenchmarkResult runHatSingleKernel(Path modelPath, BackendType backendType, HybridKernelFactory.KernelType kernel, String label) {
         return runBenchmark(label, () -> new LlamaInference(modelPath, new HybridKernelFactory(Set.of(kernel)), backendType));
     }
