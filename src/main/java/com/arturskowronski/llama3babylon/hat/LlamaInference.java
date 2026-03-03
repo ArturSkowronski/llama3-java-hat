@@ -44,7 +44,7 @@ public class LlamaInference {
     }
 
     public LlamaInference(Path ggufPath, IKernelFactory factory, BackendType backendType) throws IOException {
-        this(ggufPath, factory, backendType, WeightStorageMode.F16);
+        this(ggufPath, factory, backendType, WeightStorageMode.fromEnv());
     }
 
     /**
@@ -63,10 +63,12 @@ public class LlamaInference {
 
         // Load global weights
         // Llama 3.2 1B uses tied embeddings: output classifier shares token_embd.weight
-        this.tokenEmbedding = mapProjectionWeight("token_embd.weight");
+        this.tokenEmbedding = mapProjectionWeight("token_embd.weight",
+                LlamaModel.VOCAB_SIZE, LlamaModel.HIDDEN_SIZE);
         this.outputNormWeight = model.mapTensor("output_norm.weight");
         this.outputWeight = model.hasTensor("output.weight")
-                ? mapProjectionWeight("output.weight")
+                ? mapProjectionWeight("output.weight",
+                        LlamaModel.VOCAB_SIZE, LlamaModel.HIDDEN_SIZE)
                 : tokenEmbedding;
 
         // Initialize kernels using factory
@@ -97,9 +99,10 @@ public class LlamaInference {
         this.chatFormat = new ChatFormat(tokenizer);
     }
 
-    private Object mapProjectionWeight(String tensorName) throws IOException {
+    private Object mapProjectionWeight(String tensorName, int rows, int cols) throws IOException {
         return switch (weightMode) {
             case F16 -> model.mapTensorF16(tensorName);
+            case F16_FAST -> model.mapWeightsF16(tensorName, rows, cols);
             case F32 -> model.mapTensor(tensorName);
         };
     }
@@ -123,6 +126,11 @@ public class LlamaInference {
                     x.array(i, F16.f16ToFloat(f16.array(offset + i)));
                 }
             }
+            case F16Weights f16w -> {
+                for (int i = 0; i < hiddenSize; i++) {
+                    x.array(i, f16w.getFloat(offset + i));
+                }
+            }
             case F32Array f32 -> {
                 for (int i = 0; i < hiddenSize; i++) {
                     x.array(i, f32.array(offset + i));
@@ -142,6 +150,7 @@ public class LlamaInference {
         // 4. Classifier GEMV (outputWeight @ x → logits)
         switch (outputWeight) {
             case F16Array f16 -> gemv.apply(f16, x, logits, vocabSize, hiddenSize);
+            case F16Weights f16w -> gemv.apply(f16w, x, logits, vocabSize, hiddenSize);
             case F32Array f32 -> gemv.apply(f32, x, logits, vocabSize, hiddenSize);
             default -> throw new IllegalStateException("Unexpected output weight type: " + outputWeight.getClass());
         }

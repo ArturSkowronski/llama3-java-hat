@@ -1,5 +1,6 @@
 package com.arturskowronski.llama3babylon.hat.kernels;
 
+import com.arturskowronski.llama3babylon.hat.F16Weights;
 import hat.buffer.F16Array;
 import hat.buffer.F32Array;
 import hat.types.F16;
@@ -37,6 +38,30 @@ public interface IGEMV {
             int rowOffset = row * cols;
             for (int c = 0; c < cols; c++) {
                 sum += F16.f16ToFloat(matrix.array(rowOffset + c)) * vector.array(c);
+            }
+            result.array(row, sum);
+        }
+    }
+
+    /**
+     * Computes Matrix-Vector multiplication y = Ax with F16Weights (CPU-optimized short[]).
+     * Default fallback: row-by-row dequant + dot product on plain arrays.
+     */
+    default void apply(F16Weights matrix, F32Array vector, F32Array result, int rows, int cols) {
+        short[] data = matrix.data();
+        float[] rowBuf = new float[cols];
+        float[] vecBuf = new float[cols];
+        for (int c = 0; c < cols; c++) {
+            vecBuf[c] = vector.array(c);
+        }
+        for (int row = 0; row < rows; row++) {
+            int rowOffset = row * cols;
+            for (int c = 0; c < cols; c++) {
+                rowBuf[c] = Float.float16ToFloat(data[rowOffset + c]);
+            }
+            float sum = 0.0f;
+            for (int c = 0; c < cols; c++) {
+                sum += rowBuf[c] * vecBuf[c];
             }
             result.array(row, sum);
         }

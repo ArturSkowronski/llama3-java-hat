@@ -63,4 +63,45 @@ public class WeightStorageModeComparisonTest {
         assertEquals(f32Response, f16Response,
                 "F16 and F32 weight storage modes should produce identical chat output");
     }
+
+    @Test
+    @EnabledIfEnvironmentVariable(named = "LLAMA_FP16_PATH", matches = ".*")
+    public void testF16FastForwardPassLogitsIdentical() throws IOException {
+        Path modelPath = Paths.get(System.getenv("LLAMA_FP16_PATH"));
+
+        LlamaInference f16FastInference = new LlamaInference(
+                modelPath, new PlainJavaKernelFactory(), BackendType.JAVA_SEQ, WeightStorageMode.F16_FAST);
+        LlamaInference f32Inference = new LlamaInference(
+                modelPath, new PlainJavaKernelFactory(), BackendType.JAVA_SEQ, WeightStorageMode.F32);
+
+        int bosToken = 128000;
+        float[] f16FastLogits = f16FastInference.forward(bosToken, 0);
+        float[] f32Logits = f32Inference.forward(bosToken, 0);
+
+        assertEquals(LlamaModel.VOCAB_SIZE, f16FastLogits.length);
+        assertArrayEquals(f32Logits, f16FastLogits,
+                "F16_FAST and F32 weight storage modes should produce identical logits");
+    }
+
+    @Test
+    @EnabledIfEnvironmentVariable(named = "LLAMA_FP16_PATH", matches = ".*")
+    public void testF16FastChatOutputIdentical() throws IOException {
+        Path modelPath = Paths.get(System.getenv("LLAMA_FP16_PATH"));
+
+        LlamaInference f16FastInference = new LlamaInference(
+                modelPath, new PlainJavaKernelFactory(), BackendType.JAVA_SEQ, WeightStorageMode.F16_FAST);
+        LlamaInference f32Inference = new LlamaInference(
+                modelPath, new PlainJavaKernelFactory(), BackendType.JAVA_SEQ, WeightStorageMode.F32);
+
+        String systemPrompt = "You are a helpful assistant.";
+        String userPrompt = "Tell a joke about programming";
+        int maxTokens = 32;
+
+        String f16FastResponse = f16FastInference.chat(systemPrompt, userPrompt, maxTokens);
+        String f32Response = f32Inference.chat(systemPrompt, userPrompt, maxTokens);
+
+        assertFalse(f16FastResponse.isEmpty(), "F16_FAST response should not be empty");
+        assertEquals(f32Response, f16FastResponse,
+                "F16_FAST and F32 weight storage modes should produce identical chat output");
+    }
 }

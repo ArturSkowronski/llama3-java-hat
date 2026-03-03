@@ -122,6 +122,55 @@ public class LlamaModelTest {
     }
 
     @Test
+    public void testMapWeightsF16() throws IOException {
+        Path ggufPath = tempDir.resolve("llama_f16_weights.gguf");
+        float[] testData = {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f};
+        MinimalGGUFGenerator.generateLlamaWithF16Tensor(ggufPath, "test.weight", testData);
+
+        LlamaModel model = new LlamaModel(ggufPath, false);
+
+        F16Weights weights = model.mapWeightsF16("test.weight", 2, 3);
+        assertEquals(6, weights.length());
+        assertEquals(2, weights.rows());
+        assertEquals(3, weights.cols());
+        assertEquals(1.0f, weights.getFloat(0), 0.01f);
+        assertEquals(2.0f, weights.getFloat(1), 0.01f);
+        assertEquals(6.0f, weights.getFloat(5), 0.01f);
+    }
+
+    @Test
+    public void testMapWeightsF16Caching() throws IOException {
+        Path ggufPath = tempDir.resolve("llama_f16_weights_cache.gguf");
+        float[] testData = {1.0f, 2.0f, 3.0f, 4.0f};
+        MinimalGGUFGenerator.generateLlamaWithF16Tensor(ggufPath, "cached.weight", testData);
+
+        LlamaModel model = new LlamaModel(ggufPath, false);
+
+        F16Weights w1 = model.mapWeightsF16("cached.weight", 2, 2);
+        F16Weights w2 = model.mapWeightsF16("cached.weight", 2, 2);
+        assertSame(w1, w2);
+    }
+
+    @Test
+    public void testMapWeightsF16RejectsF32() throws IOException {
+        Path ggufPath = tempDir.resolve("llama_f32_reject_weights.gguf");
+        MinimalGGUFGenerator.generateLlamaWithTensor(ggufPath, "f32.weight", new float[]{1.0f, 2.0f});
+
+        LlamaModel model = new LlamaModel(ggufPath, false);
+        assertThrows(IOException.class, () -> model.mapWeightsF16("f32.weight", 1, 2));
+    }
+
+    @Test
+    public void testMapWeightsF16RejectsShapeMismatch() throws IOException {
+        Path ggufPath = tempDir.resolve("llama_f16_shape_mismatch.gguf");
+        float[] testData = {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f};
+        MinimalGGUFGenerator.generateLlamaWithF16Tensor(ggufPath, "test.weight", testData);
+
+        LlamaModel model = new LlamaModel(ggufPath, false);
+        assertThrows(IOException.class, () -> model.mapWeightsF16("test.weight", 3, 3));
+    }
+
+    @Test
     public void testMapTensorNotFound() throws IOException {
         Path ggufPath = tempDir.resolve("llama_no_tensor.gguf");
         MinimalGGUFGenerator.generateLlamaWithTensor(ggufPath, "existing.weight", new float[]{1.0f});

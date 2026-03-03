@@ -1,5 +1,6 @@
 package com.arturskowronski.llama3babylon.hat.kernels;
 
+import com.arturskowronski.llama3babylon.hat.F16Weights;
 import hat.Accelerator;
 import hat.ComputeContext;
 import hat.KernelContext;
@@ -23,6 +24,7 @@ public class GEMV implements IGEMV {
 
     private final Accelerator accelerator;
     private float[] rowBuf;
+    private float[] vecBuf;
 
     public GEMV(Accelerator accelerator) {
         this.accelerator = accelerator;
@@ -55,6 +57,34 @@ public class GEMV implements IGEMV {
             float sum = 0.0f;
             for (int c = 0; c < cols; c++) {
                 sum += rowBuf[c] * vector.array(c);
+            }
+            result.array(row, sum);
+        }
+    }
+
+    @Override
+    public void apply(F16Weights matrix, F32Array vector, F32Array result, int rows, int cols) {
+        short[] data = matrix.data();
+        if (rowBuf == null || rowBuf.length < cols) {
+            rowBuf = new float[cols];
+        }
+        if (vecBuf == null || vecBuf.length < cols) {
+            vecBuf = new float[cols];
+        }
+        // Extract vector once (avoid repeated F32Array.array() calls in inner loop)
+        for (int c = 0; c < cols; c++) {
+            vecBuf[c] = vector.array(c);
+        }
+        for (int row = 0; row < rows; row++) {
+            int rowOffset = row * cols;
+            // Pass 1: dequant from short[] → float[] (no proxy, JIT-vectorizable)
+            for (int c = 0; c < cols; c++) {
+                rowBuf[c] = Float.float16ToFloat(data[rowOffset + c]);
+            }
+            // Pass 2: dot product on plain float[] (fully SIMD-vectorizable)
+            float sum = 0.0f;
+            for (int c = 0; c < cols; c++) {
+                sum += rowBuf[c] * vecBuf[c];
             }
             result.array(row, sum);
         }

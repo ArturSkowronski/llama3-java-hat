@@ -56,11 +56,15 @@ public class F16F32WeightStorageBenchmarkTest {
         results.add(InferenceBenchmarkSupport.runWeightMode(
                 modelPath, WeightStorageMode.F16, BackendType.JAVA_SEQ, "CPU Plain Java: F16"));
         results.add(InferenceBenchmarkSupport.runWeightMode(
+                modelPath, WeightStorageMode.F16_FAST, BackendType.JAVA_SEQ, "CPU Plain Java: F16_FAST"));
+        results.add(InferenceBenchmarkSupport.runWeightMode(
                 modelPath, WeightStorageMode.F32, BackendType.JAVA_SEQ, "CPU Plain Java: F32"));
 
         // CPU — HAT GEMV dispatch (Java Sequential backend)
         results.add(InferenceBenchmarkSupport.runWeightModeHAT(
                 modelPath, WeightStorageMode.F16, BackendType.JAVA_SEQ, "CPU HAT GEMV: F16"));
+        results.add(InferenceBenchmarkSupport.runWeightModeHAT(
+                modelPath, WeightStorageMode.F16_FAST, BackendType.JAVA_SEQ, "CPU HAT GEMV: F16_FAST"));
         results.add(InferenceBenchmarkSupport.runWeightModeHAT(
                 modelPath, WeightStorageMode.F32, BackendType.JAVA_SEQ, "CPU HAT GEMV: F32"));
 
