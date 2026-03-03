@@ -41,6 +41,7 @@ public class LlamaModel {
     private final Accelerator accelerator;
     private final Map<String, F32Array> tensors = new HashMap<>();
     private final Map<String, F16Array> f16Tensors = new HashMap<>();
+    private final Map<String, F16Weights> f16WeightsCache = new HashMap<>();
 
     public LlamaModel(Path ggufPath) throws IOException {
         this(ggufPath, BackendType.JAVA_SEQ, true);
@@ -213,6 +214,57 @@ public class LlamaModel {
 
         f16Tensors.put(tensorName, buffer);
         return buffer;
+    }
+
+    /**
+     * Maps an F16 tensor into a CPU-optimized {@link F16Weights} (plain short[] array).
+     * Uses bulk {@code MemorySegment.copy} for fast loading.
+     *
+     * @param tensorName the name of the tensor to load
+     * @param rows number of rows (for GEMV row stride)
+     * @param cols number of columns
+     * @return F16Weights backed by short[]
+     * @throws IOException if tensor not found or not F16
+     */
+    public F16Weights mapWeightsF16(String tensorName, int rows, int cols) throws IOException {
+        if (f16WeightsCache.containsKey(tensorName)) {
+            return f16WeightsCache.get(tensorName);
+        }
+
+        GGUFReader.GGUFTensorInfo tensorInfo = metadata.tensors().stream()
+                .filter(t -> t.name().equals(tensorName))
+                .findFirst()
+                .orElseThrow(() -> new IOException("Tensor not found: " + tensorName));
+
+        int type = tensorInfo.type();
+        if (type != 1) {
+            throw new IOException("Expected F16 tensor (type 1), got type " + type + " for tensor: " + tensorName);
+        }
+
+        long elementCount = 1;
+        for (long dim : tensorInfo.shape()) {
+            elementCount *= dim;
+        }
+
+        if (elementCount != (long) rows * cols) {
+            throw new IOException("Shape mismatch: tensor has " + elementCount +
+                    " elements but rows*cols = " + rows + "*" + cols + "=" + ((long) rows * cols));
+        }
+
+        short[] data = new short[(int) elementCount];
+        long absoluteOffset = metadata.dataStartOffset() + tensorInfo.offset();
+
+        try (FileChannel channel = FileChannel.open(modelPath, StandardOpenOption.READ);
+             Arena arena = Arena.ofConfined()) {
+
+            long dataSize = tensorInfo.size();
+            MemorySegment segment = channel.map(FileChannel.MapMode.READ_ONLY, absoluteOffset, dataSize, arena);
+            MemorySegment.copy(segment, ValueLayout.JAVA_SHORT, 0, data, 0, data.length);
+        }
+
+        F16Weights weights = new F16Weights(data, rows, cols);
+        f16WeightsCache.put(tensorName, weights);
+        return weights;
     }
 
     /**

@@ -80,16 +80,20 @@ public class TransformerBlock {
         // Map Weights (GGUF standard naming: blk.{N}.*)
         // Norm weights are F32 in GGUF; projection/FFN weights are F16 on disk
         String prefix = "blk." + layerIdx + ".";
+        int h = LlamaModel.HIDDEN_SIZE;
+        int kvDim = LlamaModel.NUM_KV_HEADS * LlamaModel.HEAD_DIM;
+        int inter = LlamaModel.INTERMEDIATE_SIZE;
+
         this.attnNormWeight = model.mapTensor(prefix + "attn_norm.weight");
-        this.wq = mapProjectionWeight(model, prefix + "attn_q.weight");
-        this.wk = mapProjectionWeight(model, prefix + "attn_k.weight");
-        this.wv = mapProjectionWeight(model, prefix + "attn_v.weight");
-        this.wo = mapProjectionWeight(model, prefix + "attn_output.weight");
+        this.wq = mapProjectionWeight(model, prefix + "attn_q.weight", h, h);
+        this.wk = mapProjectionWeight(model, prefix + "attn_k.weight", kvDim, h);
+        this.wv = mapProjectionWeight(model, prefix + "attn_v.weight", kvDim, h);
+        this.wo = mapProjectionWeight(model, prefix + "attn_output.weight", h, h);
 
         this.ffnNormWeight = model.mapTensor(prefix + "ffn_norm.weight");
-        this.w1 = mapProjectionWeight(model, prefix + "ffn_gate.weight");
-        this.w2 = mapProjectionWeight(model, prefix + "ffn_down.weight");
-        this.w3 = mapProjectionWeight(model, prefix + "ffn_up.weight");
+        this.w1 = mapProjectionWeight(model, prefix + "ffn_gate.weight", inter, h);
+        this.w2 = mapProjectionWeight(model, prefix + "ffn_down.weight", h, inter);
+        this.w3 = mapProjectionWeight(model, prefix + "ffn_up.weight", inter, h);
 
         // Pre-allocate Intermediate Buffers
         this.q = F32Array.create(acc, LlamaModel.HIDDEN_SIZE);
@@ -107,9 +111,10 @@ public class TransformerBlock {
         this.residual = F32Array.create(acc, LlamaModel.HIDDEN_SIZE);
     }
 
-    private Object mapProjectionWeight(LlamaModel model, String tensorName) throws IOException {
+    private Object mapProjectionWeight(LlamaModel model, String tensorName, int rows, int cols) throws IOException {
         return switch (weightMode) {
             case F16 -> model.mapTensorF16(tensorName);
+            case F16_FAST -> model.mapWeightsF16(tensorName, rows, cols);
             case F32 -> model.mapTensor(tensorName);
         };
     }
@@ -214,6 +219,7 @@ public class TransformerBlock {
     private void gemvApply(Object weight, F32Array input, F32Array output, int rows, int cols) {
         switch (weight) {
             case F16Array f16 -> gemv.apply(f16, input, output, rows, cols);
+            case F16Weights f16w -> gemv.apply(f16w, input, output, rows, cols);
             case F32Array f32 -> gemv.apply(f32, input, output, rows, cols);
             default -> throw new IllegalStateException("Unexpected weight type: " + weight.getClass());
         }

@@ -1,5 +1,6 @@
 package com.arturskowronski.llama3babylon.hat.kernels;
 
+import com.arturskowronski.llama3babylon.hat.F16Weights;
 import hat.Accelerator;
 import hat.ComputeContext;
 import hat.KernelContext;
@@ -45,6 +46,13 @@ public class GEMVHAT implements IGEMV {
         accelerator.compute((Accelerator.@Reflect Compute) cc ->
             dispatchGEMVF16(cc, matrix, vector, result, rows, cols)
         );
+    }
+
+    @Override
+    public void apply(F16Weights matrix, F32Array vector, F32Array result, int rows, int cols) {
+        // Materialize to F16Array (lazy + cached) then delegate to HAT kernel
+        F16Array f16Array = matrix.toF16Array(accelerator);
+        apply(f16Array, vector, result, rows, cols);
     }
 
     @Reflect
