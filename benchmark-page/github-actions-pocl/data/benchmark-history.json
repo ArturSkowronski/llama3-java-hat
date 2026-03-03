@@ -561,6 +561,17 @@
           "error": "SKIPPED: No runtime available"
         }
       }
+    },
+    {
+      "date": "2026-03-03T17:51:31+01:00",
+      "commit": "4659b56f5615a72d995ee5b5b1e256827365e701",
+      "source": "github-actions-pocl",
+      "results": {
+        "Plain Java": null,
+        "HAT Java Sequential": null,
+        "HAT Java MT": null,
+        "HAT OpenCL GPU": null
+      }
     }
   ]
 }
