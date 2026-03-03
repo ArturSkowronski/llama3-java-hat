@@ -17,16 +17,14 @@ public class HatJavaMtInferenceBenchmarkTest {
         if (model == null || model.isBlank()) {
             InferenceBenchmarkSupport.recordResults(List.of(
                     InferenceBenchmarkSupport.skipped("HAT Java MT (F16)", "LLAMA_FP16_PATH is not set"),
-                    InferenceBenchmarkSupport.skipped("HAT Java MT (F16_FAST)", "LLAMA_FP16_PATH is not set"),
-                    InferenceBenchmarkSupport.skipped("HAT Java MT (F32)", "LLAMA_FP16_PATH is not set")));
+                    InferenceBenchmarkSupport.skipped("HAT Java MT (F16_FAST)", "LLAMA_FP16_PATH is not set")));
             return;
         }
 
         var path = InferenceBenchmarkSupport.modelPathFromEnv();
         InferenceBenchmarkSupport.recordResults(List.of(
                 InferenceBenchmarkSupport.runHat(path, BackendType.JAVA_MT, WeightStorageMode.F16, "HAT Java MT (F16)"),
-                InferenceBenchmarkSupport.runHat(path, BackendType.JAVA_MT, WeightStorageMode.F16_FAST, "HAT Java MT (F16_FAST)"),
-                InferenceBenchmarkSupport.runHat(path, BackendType.JAVA_MT, WeightStorageMode.F32, "HAT Java MT (F32)")
+                InferenceBenchmarkSupport.runHat(path, BackendType.JAVA_MT, WeightStorageMode.F16_FAST, "HAT Java MT (F16_FAST)")
         ));
     }
 }
