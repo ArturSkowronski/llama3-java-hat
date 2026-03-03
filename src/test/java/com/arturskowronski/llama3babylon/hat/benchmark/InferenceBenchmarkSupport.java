@@ -2,7 +2,9 @@ package com.arturskowronski.llama3babylon.hat.benchmark;
 
 import com.arturskowronski.llama3babylon.hat.BackendType;
 import com.arturskowronski.llama3babylon.hat.LlamaInference;
+import com.arturskowronski.llama3babylon.hat.WeightStorageMode;
 import com.arturskowronski.llama3babylon.hat.kernels.HybridKernelFactory;
+import com.arturskowronski.llama3babylon.hat.kernels.PlainJavaKernelFactory;
 
 import java.io.IOException;
 import java.nio.file.Path;
@@ -49,6 +51,20 @@ final class InferenceBenchmarkSupport {
 
     static BenchmarkResult runPlainJava(Path modelPath) {
         return runBenchmark("Plain Java", () -> new LlamaInference(modelPath));
+    }
+
+    static BenchmarkResult runWeightMode(Path modelPath, WeightStorageMode mode, String label) {
+        return runWeightMode(modelPath, mode, BackendType.JAVA_SEQ, label);
+    }
+
+    static BenchmarkResult runWeightMode(Path modelPath, WeightStorageMode mode, BackendType backendType, String label) {
+        return runBenchmark(label, () -> new LlamaInference(
+                modelPath, new PlainJavaKernelFactory(), backendType, mode));
+    }
+
+    static BenchmarkResult runWeightModeHAT(Path modelPath, WeightStorageMode mode, BackendType backendType, String label) {
+        return runBenchmark(label, () -> new LlamaInference(
+                modelPath, new HybridKernelFactory(Set.of(HybridKernelFactory.KernelType.GEMV)), backendType, mode));
     }
 
     static BenchmarkResult runPlainJavaCached(Path modelPath) {

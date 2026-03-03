@@ -9,7 +9,7 @@ import java.io.IOException;
 
 /**
  * Orchestrates a single transformer block for Llama 3.2 1B Instruct.
- * 
+ *
  * Flow:
  * 1. RMSNorm (attn_norm)
  * 2. QKV Projection (GEMV x 3)
@@ -31,17 +31,19 @@ public class TransformerBlock {
     private final ISoftmax softmax;
     private final ISiLU silu;
 
-    // Weights (mapped from model)
-    private final F32Array attnNormWeight;  // F32 in GGUF — norm weights stay F32
-    private final F16Array wq;
-    private final F16Array wk;
-    private final F16Array wv;
-    private final F16Array wo;
+    private final WeightStorageMode weightMode;
 
-    private final F32Array ffnNormWeight;   // F32 in GGUF — norm weights stay F32
-    private final F16Array w1;
-    private final F16Array w2;
-    private final F16Array w3;
+    // Weights (mapped from model) — either F16Array or F32Array depending on mode
+    private final F32Array attnNormWeight;  // F32 in GGUF — norm weights always F32
+    private final Object wq;
+    private final Object wk;
+    private final Object wv;
+    private final Object wo;
+
+    private final F32Array ffnNormWeight;   // F32 in GGUF — norm weights always F32
+    private final Object w1;
+    private final Object w2;
+    private final Object w3;
 
     // Buffers for intermediate results
     private final F32Array q;
@@ -59,7 +61,13 @@ public class TransformerBlock {
     private final F32Array residual;
 
     public TransformerBlock(LlamaModel model, int layerIdx, IKernelFactory factory) throws IOException {
+        this(model, layerIdx, factory, WeightStorageMode.F16);
+    }
+
+    public TransformerBlock(LlamaModel model, int layerIdx, IKernelFactory factory,
+                            WeightStorageMode weightMode) throws IOException {
         Accelerator acc = model.getAccelerator();
+        this.weightMode = weightMode;
 
         // Initialize Kernels using factory
         this.rmsNorm = factory.createRMSNorm(acc);
@@ -70,18 +78,18 @@ public class TransformerBlock {
         this.silu = factory.createSiLU(acc);
 
         // Map Weights (GGUF standard naming: blk.{N}.*)
-        // Norm weights are F32 in GGUF; projection/FFN weights are F16
+        // Norm weights are F32 in GGUF; projection/FFN weights are F16 on disk
         String prefix = "blk." + layerIdx + ".";
         this.attnNormWeight = model.mapTensor(prefix + "attn_norm.weight");
-        this.wq = model.mapTensorF16(prefix + "attn_q.weight");
-        this.wk = model.mapTensorF16(prefix + "attn_k.weight");
-        this.wv = model.mapTensorF16(prefix + "attn_v.weight");
-        this.wo = model.mapTensorF16(prefix + "attn_output.weight");
+        this.wq = mapProjectionWeight(model, prefix + "attn_q.weight");
+        this.wk = mapProjectionWeight(model, prefix + "attn_k.weight");
+        this.wv = mapProjectionWeight(model, prefix + "attn_v.weight");
+        this.wo = mapProjectionWeight(model, prefix + "attn_output.weight");
 
         this.ffnNormWeight = model.mapTensor(prefix + "ffn_norm.weight");
-        this.w1 = model.mapTensorF16(prefix + "ffn_gate.weight");
-        this.w2 = model.mapTensorF16(prefix + "ffn_down.weight");
-        this.w3 = model.mapTensorF16(prefix + "ffn_up.weight");
+        this.w1 = mapProjectionWeight(model, prefix + "ffn_gate.weight");
+        this.w2 = mapProjectionWeight(model, prefix + "ffn_down.weight");
+        this.w3 = mapProjectionWeight(model, prefix + "ffn_up.weight");
 
         // Pre-allocate Intermediate Buffers
         this.q = F32Array.create(acc, LlamaModel.HIDDEN_SIZE);
@@ -99,9 +107,16 @@ public class TransformerBlock {
         this.residual = F32Array.create(acc, LlamaModel.HIDDEN_SIZE);
     }
 
+    private Object mapProjectionWeight(LlamaModel model, String tensorName) throws IOException {
+        return switch (weightMode) {
+            case F16 -> model.mapTensorF16(tensorName);
+            case F32 -> model.mapTensor(tensorName);
+        };
+    }
+
     /**
      * Executes the transformer block for a single token.
-     * 
+     *
      * @param x input hidden state [HIDDEN_SIZE] (modified in-place by residual adds)
      * @param pos current token position
      * @param kCache Key Cache [MAX_SEQ_LEN, NUM_KV_HEADS, HEAD_DIM]
@@ -122,9 +137,9 @@ public class TransformerBlock {
         rmsNorm.apply(x, attnNormWeight, hiddenSize);
 
         // 2. QKV Projection
-        gemv.apply(wq, x, q, hiddenSize, hiddenSize);
-        gemv.apply(wk, x, k, numKvHeads * headDim, hiddenSize);
-        gemv.apply(wv, x, v, numKvHeads * headDim, hiddenSize);
+        gemvApply(wq, x, q, hiddenSize, hiddenSize);
+        gemvApply(wk, x, k, numKvHeads * headDim, hiddenSize);
+        gemvApply(wv, x, v, numKvHeads * headDim, hiddenSize);
 
         // 3. RoPE
         rope.apply(q, pos, numHeads, headDim, ropeTheta);
@@ -172,8 +187,8 @@ public class TransformerBlock {
         }
 
         // 5. Output Projection
-        gemv.apply(wo, attnOut, x, hiddenSize, hiddenSize);
-        
+        gemvApply(wo, attnOut, x, hiddenSize, hiddenSize);
+
         // 6. Residual Add
         add(x, residual, hiddenSize);
 
@@ -184,15 +199,23 @@ public class TransformerBlock {
         rmsNorm.apply(x, ffnNormWeight, hiddenSize);
 
         // 8. Feed-Forward (SwiGLU)
-        gemv.apply(w1, x, ffn1Out, intermediateSize, hiddenSize);
-        gemv.apply(w3, x, ffn3Out, intermediateSize, hiddenSize);
+        gemvApply(w1, x, ffn1Out, intermediateSize, hiddenSize);
+        gemvApply(w3, x, ffn3Out, intermediateSize, hiddenSize);
         silu.apply(ffn1Out, intermediateSize);
         elementWiseMul(ffn1Out, ffn3Out, intermediateSize);
-        gemv.apply(w2, ffn1Out, ffnOut, hiddenSize, intermediateSize);
+        gemvApply(w2, ffn1Out, ffnOut, hiddenSize, intermediateSize);
 
         // 9. Residual Add (use saved residual, not norm'd x)
         for (int i = 0; i < hiddenSize; i++) {
             x.array(i, residual.array(i) + ffnOut.array(i));
+        }
+    }
+
+    private void gemvApply(Object weight, F32Array input, F32Array output, int rows, int cols) {
+        switch (weight) {
+            case F16Array f16 -> gemv.apply(f16, input, output, rows, cols);
+            case F32Array f32 -> gemv.apply(f32, input, output, rows, cols);
+            default -> throw new IllegalStateException("Unexpected weight type: " + weight.getClass());
         }
     }
 
