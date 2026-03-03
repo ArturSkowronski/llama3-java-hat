@@ -24,11 +24,6 @@ on:
         required: false
         default: 'code-reflection'
         type: string
-  push:
-    paths:
-      - 'src/test/java/**/F16ToFloatOpenCLCodegenTest.java'
-      - 'docs/babylon-bug-report-f16ToFloat.md'
-      - '.github/workflows/babylon-bug-reproducer.yml'
 
 jobs:
   build-babylon:
