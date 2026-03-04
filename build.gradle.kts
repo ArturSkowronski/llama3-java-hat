@@ -180,26 +180,26 @@ registerBenchmarkTestByPattern(
 
 registerBenchmarkTestByPattern(
     "benchmarkInferencePlainJava",
-    "Runs inference benchmark for Plain Java.",
-    "com.arturskowronski.llama3babylon.hat.benchmark.PlainJavaInferenceBenchmarkTest.benchmarkPlainJava"
+    "Runs Plain Java inference benchmarks (F16, F16_FAST, F32) — each in an isolated JVM.",
+    "com.arturskowronski.llama3babylon.hat.benchmark.PlainJava*InferenceBenchmarkTest.*"
 )
 
 registerBenchmarkTestByPattern(
     "benchmarkInferenceHatSeq",
-    "Runs inference benchmark for HAT Java Sequential.",
-    "com.arturskowronski.llama3babylon.hat.benchmark.HatJavaSequentialInferenceBenchmarkTest.benchmarkHatJavaSequential"
+    "Runs HAT Java Sequential inference benchmarks (F16, F16_FAST) — each in an isolated JVM.",
+    "com.arturskowronski.llama3babylon.hat.benchmark.HatJavaSeq*InferenceBenchmarkTest.*"
 )
 
 registerBenchmarkTestByPattern(
     "benchmarkInferenceHatMt",
-    "Runs inference benchmark for HAT Java Multi-Threaded.",
-    "com.arturskowronski.llama3babylon.hat.benchmark.HatJavaMtInferenceBenchmarkTest.benchmarkHatJavaMt"
+    "Runs HAT Java MT inference benchmarks (F16, F16_FAST) — each in an isolated JVM.",
+    "com.arturskowronski.llama3babylon.hat.benchmark.HatJavaMt*InferenceBenchmarkTest.*"
 )
 
 registerBenchmarkTestByPattern(
     "benchmarkInferenceHatOpencl",
-    "Runs inference benchmark for HAT OpenCL GPU.",
-    "com.arturskowronski.llama3babylon.hat.benchmark.HatOpenclInferenceBenchmarkTest.benchmarkHatOpencl"
+    "Runs HAT OpenCL GPU inference benchmarks (F16, F16_FAST, F32) — each in an isolated JVM.",
+    "com.arturskowronski.llama3babylon.hat.benchmark.HatOpencl*InferenceBenchmarkTest.*"
 )
 
 registerBenchmarkTestByPattern(

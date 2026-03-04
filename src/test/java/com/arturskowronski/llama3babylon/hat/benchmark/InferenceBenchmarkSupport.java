@@ -45,6 +45,16 @@ final class InferenceBenchmarkSupport {
         return Paths.get(p);
     }
 
+    static boolean isModelAvailable() {
+        String p = System.getenv("LLAMA_FP16_PATH");
+        return p != null && !p.isBlank();
+    }
+
+    static boolean isOpenClEnabled() {
+        String run = System.getenv("RUN_OPENCL_BENCHMARKS");
+        return run != null && run.matches("(?i)true|1|yes");
+    }
+
     static BenchmarkResult skipped(String name, String reason) {
         return new BenchmarkResult(name, -1, -1, -1, "SKIPPED: " + sanitize(reason));
     }
@@ -138,6 +148,10 @@ final class InferenceBenchmarkSupport {
 
         System.out.println(">>> " + name + " response: " + response.substring(0, Math.min(80, response.length())) + "...");
         System.out.flush();
+
+        // Release model memory before next benchmark to avoid OOM when running multiple weight modes.
+        inference = null;
+        System.gc();
 
         return new BenchmarkResult(name, loadTimeSec, inferTimeSec, tokPerSec, null);
     }
