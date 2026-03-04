@@ -26,6 +26,17 @@
           "tok_per_sec": 0.38677649880452053
         }
       }
+    },
+    {
+      "date": "2026-03-04T08:47:22Z",
+      "commit": "9d12e3021871f9100d5238c8c3e85302b6508b56",
+      "source": "gcp-t4",
+      "results": {
+        "Plain Java": null,
+        "HAT Java Sequential": null,
+        "HAT Java MT": null,
+        "HAT OpenCL GPU": null
+      }
     }
   ]
 }
