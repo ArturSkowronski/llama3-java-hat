@@ -23,3 +23,9 @@ GPU_LLAMA3_HAT_ANALYSIS.md
 
 # Results
 results/
+
+# Nix
+.direnv/
+result
+result-*
+.pre-commit-config.yaml

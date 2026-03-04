@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+
 set -euo pipefail
 
 usage() {
@@ -55,7 +56,7 @@ BRANCH=""
 IMAGE_PROJECT="ubuntu-os-cloud"
 IMAGE_FAMILY="ubuntu-2404-lts-amd64"
 DISK_GB="200"
-WORKDIR="~/llama3-java-hat"
+WORKDIR="$HOME/llama3-java-hat"
 OUTPUT_DIR="build/benchmark-results/gcp"
 KEEP_INSTANCE="false"
 DESTROY_INSTANCE="false"
@@ -69,56 +70,114 @@ BENCHMARK_WARMUP_ITERS="${BENCHMARK_WARMUP_ITERS:-}"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --project) PROJECT="$2"; shift 2 ;;
-    --zone) ZONE="$2"; shift 2 ;;
-    --instance) INSTANCE="$2"; shift 2 ;;
-    --machine-type) MACHINE_TYPE="$2"; shift 2 ;;
-    --task) TASK="$2"; shift 2 ;;
-    --repo) REPO_URL="$2"; shift 2 ;;
-    --branch) BRANCH="$2"; shift 2 ;;
-    --image-project) IMAGE_PROJECT="$2"; shift 2 ;;
-    --image-family) IMAGE_FAMILY="$2"; shift 2 ;;
-    --disk-gb) DISK_GB="$2"; shift 2 ;;
-    --workdir) WORKDIR="$2"; shift 2 ;;
-    --output-dir) OUTPUT_DIR="$2"; shift 2 ;;
-    --no-download) DOWNLOAD_RESULTS="false"; shift ;;
-    --keep-instance) KEEP_INSTANCE="true"; shift ;;
-    --destroy-instance) DESTROY_INSTANCE="true"; shift ;;
-    --destroy-only) DESTROY_ONLY="true"; shift ;;
-    --skip-create) SKIP_CREATE="true"; shift ;;
-    -h|--help) usage; exit 0 ;;
-    *) echo "Unknown option: $1" >&2; usage; exit 1 ;;
+  --project)
+    PROJECT="$2"
+    shift 2
+    ;;
+  --zone)
+    ZONE="$2"
+    shift 2
+    ;;
+  --instance)
+    INSTANCE="$2"
+    shift 2
+    ;;
+  --machine-type)
+    MACHINE_TYPE="$2"
+    shift 2
+    ;;
+  --task)
+    TASK="$2"
+    shift 2
+    ;;
+  --repo)
+    REPO_URL="$2"
+    shift 2
+    ;;
+  --branch)
+    BRANCH="$2"
+    shift 2
+    ;;
+  --image-project)
+    IMAGE_PROJECT="$2"
+    shift 2
+    ;;
+  --image-family)
+    IMAGE_FAMILY="$2"
+    shift 2
+    ;;
+  --disk-gb)
+    DISK_GB="$2"
+    shift 2
+    ;;
+  --workdir)
+    WORKDIR="$2"
+    shift 2
+    ;;
+  --output-dir)
+    OUTPUT_DIR="$2"
+    shift 2
+    ;;
+  --no-download)
+    DOWNLOAD_RESULTS="false"
+    shift
+    ;;
+  --keep-instance)
+    KEEP_INSTANCE="true"
+    shift
+    ;;
+  --destroy-instance)
+    DESTROY_INSTANCE="true"
+    shift
+    ;;
+  --destroy-only)
+    DESTROY_ONLY="true"
+    shift
+    ;;
+  --skip-create)
+    SKIP_CREATE="true"
+    shift
+    ;;
+  -h | --help)
+    usage
+    exit 0
+    ;;
+  *)
+    echo "Unknown option: $1" >&2
+    usage
+    exit 1
+    ;;
   esac
 done
 
 require_cmd gcloud
 require_cmd git
 
-if [[ "${KEEP_INSTANCE}" == "true" && "${DESTROY_INSTANCE}" == "true" ]]; then
+if [[ ${KEEP_INSTANCE} == "true" && ${DESTROY_INSTANCE} == "true" ]]; then
   echo "Use only one of --keep-instance or --destroy-instance." >&2
   exit 1
 fi
 
-if [[ -z "${PROJECT}" ]]; then
+if [[ -z ${PROJECT} ]]; then
   PROJECT="$(gcloud config get-value project 2>/dev/null || true)"
 fi
-if [[ -z "${PROJECT}" || "${PROJECT}" == "(unset)" ]]; then
+if [[ -z ${PROJECT} || ${PROJECT} == "(unset)" ]]; then
   echo "GCP project is not set. Pass --project or run: gcloud config set project <id>" >&2
   exit 1
 fi
 
-if [[ -z "${REPO_URL}" ]]; then
+if [[ -z ${REPO_URL} ]]; then
   REPO_URL="$(git config --get remote.origin.url || true)"
 fi
-if [[ -z "${REPO_URL}" ]]; then
+if [[ -z ${REPO_URL} ]]; then
   echo "Cannot infer repo URL from git remote. Pass --repo <url>." >&2
   exit 1
 fi
 
-if [[ -z "${BRANCH}" ]]; then
+if [[ -z ${BRANCH} ]]; then
   BRANCH="$(git rev-parse --abbrev-ref HEAD)"
 fi
-if [[ "${BRANCH}" == "HEAD" ]]; then
+if [[ ${BRANCH} == "HEAD" ]]; then
   echo "Detached HEAD detected. Pass --branch <name>." >&2
   exit 1
 fi
@@ -131,7 +190,7 @@ echo "Repo: ${REPO_URL}"
 echo "Branch: ${BRANCH}"
 echo "Task: ${TASK}"
 
-if [[ "${DESTROY_ONLY}" == "true" ]]; then
+if [[ ${DESTROY_ONLY} == "true" ]]; then
   echo "Destroy-only mode: deleting instance ${INSTANCE} (if it exists)."
   if gcloud compute instances describe "${INSTANCE}" --project "${PROJECT}" --zone "${ZONE}" >/dev/null 2>&1; then
     gcloud compute instances delete "${INSTANCE}" \
@@ -146,7 +205,7 @@ fi
 
 if gcloud compute instances describe "${INSTANCE}" --project "${PROJECT}" --zone "${ZONE}" >/dev/null 2>&1; then
   echo "Instance exists: ${INSTANCE}"
-  if [[ "${DESTROY_INSTANCE}" == "true" ]]; then
+  if [[ ${DESTROY_INSTANCE} == "true" ]]; then
     echo "Destroy mode enabled; recreating instance for a clean benchmark environment."
     gcloud compute instances delete "${INSTANCE}" \
       --project "${PROJECT}" \
@@ -158,7 +217,7 @@ if gcloud compute instances describe "${INSTANCE}" --project "${PROJECT}" --zone
 fi
 
 if ! gcloud compute instances describe "${INSTANCE}" --project "${PROJECT}" --zone "${ZONE}" >/dev/null 2>&1; then
-  if [[ "${SKIP_CREATE}" == "true" ]]; then
+  if [[ ${SKIP_CREATE} == "true" ]]; then
     echo "Instance ${INSTANCE} does not exist and --skip-create was passed." >&2
     exit 1
   fi
@@ -190,7 +249,7 @@ cleanup_local() {
 }
 trap cleanup_local EXIT
 
-cat > "${REMOTE_SCRIPT}" <<'EOF_REMOTE'
+cat >"${REMOTE_SCRIPT}" <<'EOF_REMOTE'
 set -euo pipefail
 
 REPO_URL="$1"
@@ -355,7 +414,7 @@ EOF_REMOTE
 
 echo "Running benchmark on remote instance..."
 REMOTE_SCRIPT_NAME="run-benchmark-${RANDOM}-$$.sh"
-REMOTE_SCRIPT_PATH="~/${REMOTE_SCRIPT_NAME}"
+REMOTE_SCRIPT_PATH="$HOME/${REMOTE_SCRIPT_NAME}"
 gcloud compute scp "${REMOTE_SCRIPT}" "${INSTANCE}:${REMOTE_SCRIPT_PATH}" --project "${PROJECT}" --zone "${ZONE}" >/dev/null
 gcloud compute ssh "${INSTANCE}" --project "${PROJECT}" --zone "${ZONE}" \
   --command "bash ${REMOTE_SCRIPT_PATH} '$REPO_URL' '$BRANCH' '$TASK' '$RUN_OPENCL_BENCHMARKS' '$BENCHMARK_ITERS' '$BENCHMARK_WARMUP_ITERS' '$WORKDIR'; rc=\$?; rm -f ${REMOTE_SCRIPT_PATH}; exit \$rc"
@@ -363,7 +422,7 @@ gcloud compute ssh "${INSTANCE}" --project "${PROJECT}" --zone "${ZONE}" \
 mkdir -p "${OUTPUT_DIR}"
 STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
 
-if [[ "${DOWNLOAD_RESULTS}" == "true" ]]; then
+if [[ ${DOWNLOAD_RESULTS} == "true" ]]; then
   echo "Downloading benchmark TSV and artifacts..."
   gcloud compute scp \
     "${INSTANCE}:${WORKDIR}/build/benchmark-results/results.tsv" \
@@ -378,10 +437,10 @@ if [[ "${DOWNLOAD_RESULTS}" == "true" ]]; then
     --zone "${ZONE}" || true
 fi
 
-if [[ "${DESTROY_INSTANCE}" == "true" ]]; then
+if [[ ${DESTROY_INSTANCE} == "true" ]]; then
   echo "Deleting instance: ${INSTANCE}"
   gcloud compute instances delete "${INSTANCE}" --project "${PROJECT}" --zone "${ZONE}" --quiet || true
-elif [[ "${KEEP_INSTANCE}" == "true" ]]; then
+elif [[ ${KEEP_INSTANCE} == "true" ]]; then
   echo "Keeping instance running: ${INSTANCE}"
 else
   echo "Stopping instance: ${INSTANCE}"
