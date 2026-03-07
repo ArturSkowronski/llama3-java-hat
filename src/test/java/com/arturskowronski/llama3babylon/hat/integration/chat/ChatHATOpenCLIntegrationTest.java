@@ -17,12 +17,11 @@ import java.util.Set;
  * Integration test running all 6 HAT kernels on the OpenCL GPU backend.
  * The same kernel code that ran on the Java Sequential backend is now dispatched to GPU via OpenCL FFI.
  */
-@Tag("hat-integration")
+@Tag("hat-opencl-integration")
 public class ChatHATOpenCLIntegrationTest {
 
     @Test
     @EnabledIfEnvironmentVariable(named = "LLAMA_FP16_PATH", matches = ".*")
-    @EnabledIfEnvironmentVariable(named = "RUN_OPENCL_INTEGRATION", matches = "(?i)true|1|yes")
     public void testChatWithAllHATKernelsOnOpenCL() throws IOException {
         Path modelPath = Paths.get(System.getenv("LLAMA_FP16_PATH"));
 

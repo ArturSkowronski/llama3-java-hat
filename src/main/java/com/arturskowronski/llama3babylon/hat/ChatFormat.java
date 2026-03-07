@@ -20,6 +20,7 @@ public class ChatFormat {
     private final Set<Integer> stopTokens;
 
     public ChatFormat(Tokenizer tokenizer) {
+        super();
         this.tokenizer = tokenizer;
         Map<String, Integer> special = tokenizer.getSpecialTokens();
         this.beginOfText = special.get("<|begin_of_text|>");

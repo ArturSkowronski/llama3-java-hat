@@ -16,7 +16,7 @@ import java.util.Set;
 /**
  * Integration test running all 6 HAT kernels on the Java Multi-Threaded backend.
  */
-@Tag("hat-integration")
+@Tag("hat-mt-integration")
 public class ChatHATJavaMTIntegrationTest {
 
     @Test

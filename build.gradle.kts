@@ -79,13 +79,19 @@ fun registerIntegrationTest(name: String, description: String, vararg tags: Stri
     }
 
 registerIntegrationTest("integrationTest",
-    "Runs all integration tests.", "plain-integration", "hat-integration")
+    "Runs all integration tests.", "plain-integration", "hat-integration", "hat-mt-integration", "hat-opencl-integration")
 
 registerIntegrationTest("plainIntegrationTest",
     "Runs plain Java integration tests (no HAT).", "plain-integration")
 
 registerIntegrationTest("hatIntegrationTest",
-    "Runs HAT backend integration tests (JavaMT/OpenCL + backend-dispatch smoke).", "hat-integration")
+    "Runs HAT Sequential backend integration tests.", "hat-integration")
+
+registerIntegrationTest("hatMtIntegrationTest",
+    "Runs HAT Java Multi-Threaded backend integration tests.", "hat-mt-integration")
+
+registerIntegrationTest("hatOpenClIntegrationTest",
+    "Runs HAT OpenCL GPU backend integration tests.", "hat-opencl-integration")
 
 fun registerBenchmarkTestByPattern(name: String, description: String, testPattern: String) =
     tasks.register<Test>(name) {

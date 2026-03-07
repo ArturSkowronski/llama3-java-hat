@@ -180,7 +180,7 @@ jobs:
           export JAVA_HOME=$JAVA_BABYLON_ROOT/build/linux-x86_64-server-release/images/jdk
           export PATH=$JAVA_HOME/bin:$PATH
           export LLAMA_FP16_PATH=$(pwd)/Llama-3.2-1B-Instruct-f16.gguf
-          ./gradlew integrationTest --console=plain
+          ./gradlew plainIntegrationTest --console=plain
 
       - name: Upload Results
         if: always()
@@ -188,8 +188,8 @@ jobs:
         with:
           name: nightly-results
           path: |
-            build/reports/tests/integrationTest/
-            build/test-results/integrationTest/
+            build/reports/tests/plainIntegrationTest/
+            build/test-results/plainIntegrationTest/
           retention-days: 3
 
   daily-benchmarks:
