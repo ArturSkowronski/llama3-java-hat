@@ -616,6 +616,17 @@
         "HAT Java MT": null,
         "HAT OpenCL GPU": null
       }
+    },
+    {
+      "date": "2026-03-09T14:49:43+01:00",
+      "commit": "97684e60dbaa0a97d43cde9bfb63af085e635bd3",
+      "source": "github-actions-pocl",
+      "results": {
+        "Plain Java": null,
+        "HAT Java Sequential": null,
+        "HAT Java MT": null,
+        "HAT OpenCL GPU": null
+      }
     }
   ]
 }
