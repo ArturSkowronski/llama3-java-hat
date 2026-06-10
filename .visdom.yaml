@@ -1,0 +1,8 @@
+enabled: true
+lenses:
+  maintainability: { enabled: true, min_severity: medium }
+standards:
+  sources: ["docs/standards/*.md"]
+rules:
+  - .visdom/rules/org.rules.yaml
+instructions: "When a finding violates a document under docs/standards/, cite the document path."
