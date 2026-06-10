@@ -1,0 +1,25 @@
+version: 1
+rules:
+  - id: llama3/no-stdout-logging
+    type: pattern
+    severity: medium
+    category: maintainability
+    languages: [java]
+    message: "System.out logging in library code"
+    help: "Library code must not write to stdout; tensor loading runs in tight loops and stdout flushes destroy throughput."
+    fix_hint: "Use the project Logger; stdout is reserved for the CLI entrypoint."
+    pattern: { regex: "System\\.out\\.print" }
+  - id: llama3/tensor-ops-document-shape
+    type: llm
+    severity: high
+    category: correctness
+    paths: { include: ["**/tensor/**", "**/*Tensor*.java"] }
+    instruction: |
+      Every public method that creates, reshapes, or maps a tensor must validate (or explicitly document)
+      the expected dimensions/shape of its inputs. Silent shape mismatches surface as garbage inference output.
+    success_criteria: "Tensor-handling methods in the diff validate dimensions or carry a shape contract comment."
+    failure_criteria: "A tensor-handling method accepts arrays/buffers with no dimension validation and no documented shape contract."
+    examples:
+      bad: 'public FloatTensor mapRow(float[] data) { return new FloatTensor(data); }'
+      good: 'public FloatTensor mapRow(float[] data) { if (data.length != dim) throw new IllegalArgumentException(...); return new FloatTensor(data); }'
+    message: "Tensor operation lacks shape validation or documented contract"
